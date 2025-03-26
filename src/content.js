@@ -648,12 +648,13 @@ function isNgDigraphImproved(word, position, pronunciation) {
     if (!alignment) {
         return isNgDigraph(word, position);
     }
+    console.log(alignment);
 
     // First, check if there's a direct 'ng' entry at this position
     for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters === 'ng') {
+        if (entry.startIndex === position && entry.letters.includes('ng')) {
             // It's a digraph if it maps to a single NG phoneme
-            return entry.isDigraph === true;
+            return true;
         }
     }
 
@@ -673,23 +674,19 @@ function isNgDigraphImproved(word, position, pronunciation) {
 
 // Improved disambiguation for soft/hard C
 function isSoftCImproved(word, position, pronunciation) {
-    console.log(pronunciation)
     if (!pronunciation) {
         // Fall back to the original heuristic if no pronunciation available
         return isSoftC(word, position);
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
-    console.log(alignment)
     if (!alignment) {
         return isSoftC(word, position);
     }
 
     // Find the entry for this position
     for (const entry of alignment) {
-        console.log(entry, position);
         if (entry.startIndex === position && entry.letters.includes('c')) {
-            console.log("HERE");
             // In CMU dictionary, soft C typically has an S sound
             return entry.phoneme && entry.phoneme.startsWith('S');
         }
