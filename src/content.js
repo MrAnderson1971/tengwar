@@ -484,8 +484,8 @@ function isHardS(word, position, pronunciation, alignment) {
     }
 
     for (const entry of alignment) {
-        if (entry.startIndex === position && entry.phoneme.includes('Z')) {
-            return true;
+        if (entry.startIndex === position && entry.letters.includes('s')) {
+            return entry.phoneme && entry.phoneme.startsWith('Z');
         }
     }
     return false;
