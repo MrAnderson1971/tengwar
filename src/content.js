@@ -60,7 +60,7 @@ const tengwarMap = {
     'nasalizer': 'p',   // \TTnasalizer
     'doubler': ';',     // \TTdoubler
     'tilde': 'ê',       // \TTtilde
-    'dot-below': 'Ê',   // \TTdotbelow - For silent e's
+    'dot-below': 'É',   // \TTdotbelow - For silent e's
     'caron': 'Ù',       // \TTcaron - For hard y sound (hypothesis)
     'two-dots-below': 'Í', // \TTtwodotsbelow - For short i sound (quickly)
     'left-hook': '|',   // \Tlefthook
@@ -107,7 +107,7 @@ const englishToTengwar = {
     'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
     'mp': { char: tengwarMap['parma'] + tengwarMap['nasalizer'] },
     'nk': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] },
-    'nc': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] }, // Same as nk
+    //'nc': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] }, // Same as nk
     'nq': { char: tengwarMap['unque'] },
     'n': { char: tengwarMap['nuumen'] },
     'm': { char: tengwarMap['malta'] },
@@ -124,13 +124,6 @@ const englishToTengwar = {
     'gh': { char: tengwarMap['unque'] },
     'x': { char: tengwarMap['quesse'] + tengwarMap['left-hook'] },
     'j': { char: tengwarMap['anga'] },
-
-    // Special vowel carriers for initial vowels
-    'initial-a': { char: tengwarMap['telco'], tehta: tengwarMap['three-dots'] },
-    'initial-e': { char: tengwarMap['telco'], tehta: tengwarMap['acute'] },
-    'initial-i': { char: tengwarMap['telco'], tehta: tengwarMap['dot'] },
-    'initial-o': { char: tengwarMap['telco'], tehta: tengwarMap['right-curl'] },
-    'initial-u': { char: tengwarMap['telco'], tehta: tengwarMap['left-curl'] },
 };
 
 // Special cases for common English words
@@ -448,160 +441,200 @@ function hasSilentE(word) {
     return hasEarlierVowel && isConsonant;
 }
 
-// This function aligns English spelling with CMU dictionary phonemes
-// It returns an array of {letter, phoneme} pairs for better disambiguation
+// This function aligns CMU dictionary phonemes with English spelling
+// It starts from phonemes and maps them to letters for better accuracy
 function alignLettersToPhonemes(word, pronunciation) {
     if (!pronunciation) {
         return null;
     }
 
-    const result = [];
-    let letterIndex = 0;
-    let phonemeIndex = 0;
+    const lowercaseWord = word.toLowerCase();
     const phonemes = pronunciation.split(' ');
 
-    // Convert word to lowercase for processing
-    const lowercaseWord = word.toLowerCase();
+    // Initialize result and tracking variables
+    const result = [];
+    let remainingWord = lowercaseWord;
+    let currentWordIndex = 0;
 
-    while (letterIndex < lowercaseWord.length && phonemeIndex < phonemes.length) {
-        // Handle digraphs and trigraphs first (check ahead for multi-character sequences)
+    // Common phoneme-to-letter patterns
+    const phonemeToLetterPatterns = {
+        // Vowel phonemes
+        'AA0': ['a', 'o'], 'AA1': ['a', 'o'], 'AA2': ['a', 'o'],
+        'AE0': ['a'], 'AE1': ['a'], 'AE2': ['a'],
+        'AH0': ['a', 'e', 'i', 'o', 'u'], 'AH1': ['a', 'e', 'i', 'o', 'u'], 'AH2': ['a', 'e', 'i', 'o', 'u'],
+        'AO0': ['o', 'a', 'au', 'aw'], 'AO1': ['o', 'a', 'au', 'aw'], 'AO2': ['o', 'a', 'au', 'aw'],
+        'AW0': ['ou', 'ow'], 'AW1': ['ou', 'ow'], 'AW2': ['ou', 'ow'],
+        'AY0': ['i', 'y', 'ie', 'igh'], 'AY1': ['i', 'y', 'ie', 'igh'], 'AY2': ['i', 'y', 'ie', 'igh'],
+        'EH0': ['e', 'ea'], 'EH1': ['e', 'ea'], 'EH2': ['e', 'ea'],
+        'ER0': ['er', 'ir', 'ur', 'ear', 'or'], 'ER1': ['er', 'ir', 'ur', 'ear', 'or'], 'ER2': ['er', 'ir', 'ur', 'ear', 'or'],
+        'EY0': ['a', 'ai', 'ay', 'ei', 'ey'], 'EY1': ['a', 'ai', 'ay', 'ei', 'ey'], 'EY2': ['a', 'ai', 'ay', 'ei', 'ey'],
+        'IH0': ['i', 'y', 'e'], 'IH1': ['i', 'y', 'e'], 'IH2': ['i', 'y', 'e'],
+        'IY0': ['e', 'ee', 'ea', 'y', 'i'], 'IY1': ['e', 'ee', 'ea', 'y', 'i'], 'IY2': ['e', 'ee', 'ea', 'y', 'i'],
+        'OW0': ['o', 'oa', 'ow'], 'OW1': ['o', 'oa', 'ow'], 'OW2': ['o', 'oa', 'ow'],
+        'OY0': ['oi', 'oy'], 'OY1': ['oi', 'oy'], 'OY2': ['oi', 'oy'],
+        'UH0': ['u', 'oo'], 'UH1': ['u', 'oo'], 'UH2': ['u', 'oo'],
+        'UW0': ['oo', 'u', 'ew', 'ue', 'ui'], 'UW1': ['oo', 'u', 'ew', 'ue', 'ui'], 'UW2': ['oo', 'u', 'ew', 'ue', 'ui'],
+
+        // Consonant phonemes
+        'B': ['b'],
+        'CH': ['ch', 'tch'],
+        'D': ['d', 'ed'],
+        'DH': ['th'],
+        'F': ['f', 'ph', 'gh'],
+        'G': ['g', 'gg', 'gh'],
+        'HH': ['h'],
+        'JH': ['j', 'g', 'dg', 'dge'],
+        'K': ['c', 'k', 'ck', 'ch', 'q'],
+        'L': ['l', 'll'],
+        'M': ['m', 'mm'],
+        'N': ['n', 'nn', 'kn', 'gn'],
+        'NG': ['ng', 'n'],
+        'P': ['p', 'pp'],
+        'R': ['r', 'rr', 'wr'],
+        'S': ['s', 'c', 'ss', 'ce', 'se'],
+        'SH': ['sh', 'ti', 'ci', 'si', 'ch'],
+        'T': ['t', 'tt', 'ed'],
+        'TH': ['th'],
+        'V': ['v', 'f'],
+        'W': ['w', 'wh'],
+        'Y': ['y', 'i', 'j'],
+        'Z': ['z', 's', 'zz', 'x', 'ss'],
+        'ZH': ['s', 'z', 'g']
+    };
+
+    // Special compound phonemes that might map to a single letter
+    const compoundPhonemes = {
+        'K S': ['x']
+    };
+
+    // Process each phoneme
+    for (let i = 0; i < phonemes.length; i++) {
+        const currentPhoneme = phonemes[i];
+
+        // Check for compound phonemes like 'K S' -> 'x'
+        if (i < phonemes.length - 1) {
+            const possibleCompound = currentPhoneme + ' ' + phonemes[i + 1];
+            if (compoundPhonemes[possibleCompound] &&
+                remainingWord.startsWith(compoundPhonemes[possibleCompound][0])) {
+                const letters = compoundPhonemes[possibleCompound][0];
+                result.push({
+                    letters: letters,
+                    startIndex: currentWordIndex,
+                    endIndex: currentWordIndex + letters.length - 1,
+                    phoneme: possibleCompound,
+                    isCompound: true
+                });
+                remainingWord = remainingWord.slice(letters.length);
+                currentWordIndex += letters.length;
+                i++; // Skip the next phoneme as it's part of the compound
+                continue;
+            }
+        }
+
+        // Get possible letter patterns for this phoneme
+        const possiblePatterns = phonemeToLetterPatterns[currentPhoneme] || [];
+
+        // Try to match the patterns against the remaining word
         let matched = false;
 
-        // Check for known digraphs/trigraphs
-        const digraphs = ['ng', 'th', 'sh', 'ch', 'ph', 'wh', 'qu', 'ck'];
-        const trigraphs = ['tch'];
+        // Sort patterns by length (descending) to try longer patterns first
+        const sortedPatterns = [...possiblePatterns].sort((a, b) => b.length - a.length);
 
-        // Try trigraphs first
-        for (const trigraph of trigraphs) {
-            if (letterIndex + trigraph.length <= lowercaseWord.length &&
-                lowercaseWord.substring(letterIndex, letterIndex + trigraph.length) === trigraph) {
-
-                // For example 'tch' corresponds to the 'CH' phoneme
+        for (const pattern of sortedPatterns) {
+            if (remainingWord.startsWith(pattern)) {
                 result.push({
-                    letters: trigraph,
-                    startIndex: letterIndex,
-                    endIndex: letterIndex + trigraph.length - 1,
-                    phoneme: phonemes[phonemeIndex]
+                    letters: pattern,
+                    startIndex: currentWordIndex,
+                    endIndex: currentWordIndex + pattern.length - 1,
+                    phoneme: currentPhoneme
                 });
-
-                letterIndex += trigraph.length;
-                phonemeIndex++;
+                remainingWord = remainingWord.slice(pattern.length);
+                currentWordIndex += pattern.length;
                 matched = true;
                 break;
             }
         }
 
-        // If no trigraph matched, try digraphs
+        // If no pattern matched, take the next letter and mark as a best guess
         if (!matched) {
-            for (const digraph of digraphs) {
-                if (letterIndex + digraph.length <= lowercaseWord.length &&
-                    lowercaseWord.substring(letterIndex, letterIndex + digraph.length) === digraph) {
+            // Handle silent letters that might come before the next phoneme
+            if (remainingWord.length > 0) {
+                // Common silent letter combinations
+                const silentPatterns = ['e', 'gh', 'h', 'k', 'w', 'b', 'l', 'n', 'p', 't'];
+                let silentMatched = false;
 
-                    // Special handling for 'ng' digraph
-                    if (digraph === 'ng') {
-                        // Check if it's a true 'ng' digraph (NG) or n+g (N G)
-                        // In the CMU dict, 'ng' digraph is typically represented as "NG"
-                        if (phonemes[phonemeIndex] === 'NG') {
+                // Try to identify silent letters
+                for (const silent of silentPatterns) {
+                    if (remainingWord.startsWith(silent) &&
+                        // Verify we're not at the end of the word
+                        (remainingWord.length > silent.length)) {
+
+                        // Simple heuristic: if the letter doesn't match any expected pattern
+                        // for the current phoneme, it might be silent
+                        const isExpectedForCurrentPhoneme = possiblePatterns.some(p =>
+                            p.startsWith(silent) || p === silent);
+
+                        if (!isExpectedForCurrentPhoneme) {
                             result.push({
-                                letters: digraph,
-                                startIndex: letterIndex,
-                                endIndex: letterIndex + digraph.length - 1,
-                                phoneme: 'NG',
-                                isDigraph: true
+                                letters: silent,
+                                startIndex: currentWordIndex,
+                                endIndex: currentWordIndex + silent.length - 1,
+                                phoneme: null,
+                                isSilent: true
                             });
-                            letterIndex += 2;
-                            phonemeIndex++;
-                        } else {
-                            // It's n+g, not a digraph
-                            result.push({
-                                letters: 'n',
-                                startIndex: letterIndex,
-                                endIndex: letterIndex,
-                                phoneme: phonemes[phonemeIndex],
-                                isDigraph: false
-                            });
-                            letterIndex++;
-                            phonemeIndex++;
-                            // We don't increment phonemeIndex again as 'g' will be handled in the next iteration
+                            remainingWord = remainingWord.slice(silent.length);
+                            currentWordIndex += silent.length;
+                            silentMatched = true;
+                            i--; // Try this phoneme again with the next letter
+                            break;
                         }
-                    } else {
-                        // Handle other digraphs
-                        result.push({
-                            letters: digraph,
-                            startIndex: letterIndex,
-                            endIndex: letterIndex + digraph.length - 1,
-                            phoneme: phonemes[phonemeIndex],
-                            isDigraph: true
-                        });
-                        letterIndex += digraph.length;
-                        phonemeIndex++;
                     }
-
-                    matched = true;
-                    break;
                 }
-            }
-        }
 
-        // If no multi-character sequence matched, process single letter
-        if (!matched) {
-            // Skip silent letters (like k in 'know', e in 'make')
-            if (isSilentLetter(lowercaseWord, letterIndex, phonemes, phonemeIndex)) {
+                if (silentMatched) {
+                    continue;
+                }
+
+                // If no silent pattern matched, just take the next letter
+                const nextLetter = remainingWord[0];
                 result.push({
-                    letters: lowercaseWord[letterIndex],
-                    startIndex: letterIndex,
-                    endIndex: letterIndex,
-                    phoneme: null,
-                    isSilent: true
+                    letters: nextLetter,
+                    startIndex: currentWordIndex,
+                    endIndex: currentWordIndex,
+                    phoneme: currentPhoneme,
+                    isGuess: true
                 });
-                letterIndex++;
-                // Don't increment phonemeIndex for silent letters
+                remainingWord = remainingWord.slice(1);
+                currentWordIndex += 1;
             } else {
-                // Regular letter-to-phoneme mapping
+                // No more letters but we still have phonemes
+                // This might happen with certain endings like plural 's'
+                // Just mark it as a "missing letter" case
                 result.push({
-                    letters: lowercaseWord[letterIndex],
-                    startIndex: letterIndex,
-                    endIndex: letterIndex,
-                    phoneme: phonemes[phonemeIndex]
+                    letters: '',
+                    startIndex: currentWordIndex - 1,
+                    endIndex: currentWordIndex - 1,
+                    phoneme: currentPhoneme,
+                    isMissing: true
                 });
-                letterIndex++;
-                phonemeIndex++;
             }
         }
+    }
 
-        // Handle special case where one letter represents multiple phonemes
-        // (like 'x' which is 'K S')
-        if (lowercaseWord[letterIndex - 1] === 'x' && phonemes[phonemeIndex - 1] === 'K' &&
-            phonemeIndex < phonemes.length && phonemes[phonemeIndex] === 'S') {
-            // Update the previous entry
-            result[result.length - 1].phoneme = 'K S';
-            result[result.length - 1].isMultiPhoneme = true;
-            phonemeIndex++; // Skip the next phoneme since we've handled it
-        }
+    // Handle any remaining letters (likely silent)
+    while (remainingWord.length > 0) {
+        result.push({
+            letters: remainingWord[0],
+            startIndex: currentWordIndex,
+            endIndex: currentWordIndex,
+            phoneme: null,
+            isSilent: true
+        });
+        remainingWord = remainingWord.slice(1);
+        currentWordIndex += 1;
     }
 
     return result;
-}
-
-// Function to detect silent letters
-function isSilentLetter(word, position, phonemes, phonemeIndex) {
-    const letter = word[position];
-
-    // Common silent letter patterns
-    if (position === 0 && letter === 'k' && position + 1 < word.length && word[position + 1] === 'n') {
-        return true; // Silent k in 'knight', 'know'
-    }
-
-    if (position === 0 && letter === 'p' && position + 1 < word.length &&
-        (word[position + 1] === 's' || word[position + 1] === 't')) {
-        return true; // Silent p in 'psychology', 'pterodactyl'
-    }
-
-    if (position === 0 && letter === 'g' && position + 1 < word.length && word[position + 1] === 'n') {
-        return true; // Silent g in 'gnome'
-    }
-
-    return letter === 'e' && position === word.length - 1;
 }
 
 // Improved disambiguation for NG digraph
@@ -640,19 +673,23 @@ function isNgDigraphImproved(word, position, pronunciation) {
 
 // Improved disambiguation for soft/hard C
 function isSoftCImproved(word, position, pronunciation) {
+    console.log(pronunciation)
     if (!pronunciation) {
         // Fall back to the original heuristic if no pronunciation available
         return isSoftC(word, position);
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
+    console.log(alignment)
     if (!alignment) {
         return isSoftC(word, position);
     }
 
     // Find the entry for this position
     for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters === 'c') {
+        console.log(entry, position);
+        if (entry.startIndex === position && entry.letters.includes('c')) {
+            console.log("HERE");
             // In CMU dictionary, soft C typically has an S sound
             return entry.phoneme && entry.phoneme.startsWith('S');
         }
@@ -790,7 +827,6 @@ function hasSilentEImproved(word, pronunciation) {
 
     // Check if there's a final 'e' sound in the pronunciation
     const lastPhoneme = phonemes[phonemes.length - 1];
-    const secondLastPhoneme = phonemes.length > 1 ? phonemes[phonemes.length - 2] : null;
 
     // A more reliable way to detect silent 'e':
     // 1. Count the number of vowel sounds in the pronunciation
@@ -921,9 +957,6 @@ function isDiphthong(word, position, pronunciation) {
 
     // Use pronunciation data if available
     if (pronunciation) {
-        // Split into phonemes
-        const phonemes = pronunciation.split(' ');
-
         // We need a proper mapping to determine which letter corresponds to which phoneme
         const alignment = alignLettersToPhonemes(word, pronunciation);
         if (alignment) {
@@ -980,7 +1013,8 @@ function isDiphthong(word, position, pronunciation) {
         'ae', 'ai', 'ay', 'au', 'aw',  // as in "sail", "ray", "caught", "claw"
         'ea', 'ei', 'ey',              // as in "vein", "they"
         'oi', 'oy',              // as in "coin", "boy"
-        'ou', 'ow'               // as in "out", "cow"
+        'ou', 'ow',               // as in "out", "cow"
+        'ue'
     ];
 
     return commonDiphthongs.includes(possibleDiphthong);
@@ -988,8 +1022,7 @@ function isDiphthong(word, position, pronunciation) {
 
 // Get diphthong type based on second vowel
 function getDiphthongType(word, position) {
-    const nextChar = word[position + 1].toLowerCase();
-    return nextChar;
+    return word[position + 1].toLowerCase();
 }
 
 // Handle diphthongs based on the rules:
@@ -1092,7 +1125,7 @@ function transcribeToTengwar(text) {
                         found = true;
                         break;
                     }
-                } else if (ngram === 'nc' && !isSoftCImproved(processedText, i, pronunciation)) {
+                } else if (ngram === 'nc' && !isSoftCImproved(processedText, i + 1, pronunciation)) {
                     result.push(englishToTengwar['nk'].char);
                     i += 2;
                     found = true;
