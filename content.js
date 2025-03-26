@@ -206,7 +206,7 @@ function transcribeToTengwar(text) {
     'aha': 'd',         // \Taha
     'hwesta': 'r',      // \Thwesta
     'anto': '4',        // \Tanto
-    'ampa': 'u',        // \Tampa
+    'ampa': 'r',        // \Tampa
     'anca': 'f',        // \Tanca
     'unque': 'v',       // \Tunque
     'nuumen': '5',      // \Tnuumen
@@ -221,8 +221,8 @@ function transcribeToTengwar(text) {
     'arda': 'i',        // \Tarda
     'lambe': 'j',       // \Tlambe
     'alda': 'k',        // \Talda
-    'silme': 'l',       // \Tsilme
-    'silmenuquerna': '¡', // \Tsilmenuquerna
+    'silme': '8',       // \Tsilme
+    'silmenuquerna': 'i', // \Tsilmenuquerna
     'esse': ';',        // \Tesse
     'essenuquerna': ',', // \Tessenuquerna
     'hyarmen': '8',     // \Thyarmen
@@ -265,8 +265,10 @@ function transcribeToTengwar(text) {
 
     // Basic consonants
     't': { char: tengwarMap['tinco'] },
+    'nt' : {char : tengwarMap['tinco'] + tengwarMap['nasalizer']},
     'p': { char: tengwarMap['parma'] },
-    'c': { char: tengwarMap['calma'] },
+    'c': { char: tengwarMap['silmenuquerna'] },
+    'ch': {char: tengwarMap['calma']},
     'k': { char: tengwarMap['quesse'] },
     'q': { char: tengwarMap['quesse'] },
     'qu': {char: tengwarMap['quesse'] + tengwarMap['tilde'] },
@@ -290,7 +292,7 @@ function transcribeToTengwar(text) {
     //'ny': { char: tengwarMap['noldo'] },
     //'nw': { char: tengwarMap['nwalme'] },
     'r': { char: tengwarMap['oore'] },
-    //'v': { char: tengwarMap['vala'] },
+    'v': { char: tengwarMap['ampa'] },
     'w': { char: tengwarMap['vala'] },
     //'ro': { char: tengwarMap['roomen'] },
     'rd': { char: tengwarMap['arda'] },
@@ -302,6 +304,7 @@ function transcribeToTengwar(text) {
     'y': { char: tengwarMap['anna'] },
     'gh' : {char: tengwarMap['unque'] },
     'x' : {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
+    'j': {char: tengwarMap['anga']},
 
     // Special vowel carriers for initial vowels
     'initial-a': { char: tengwarMap['telco'], tehta: tengwarMap['three-dots'] },
