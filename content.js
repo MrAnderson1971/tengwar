@@ -402,7 +402,7 @@ function transcribeToTengwar(text) {
     if ('aeiou'.includes(char)) {
       // If this is a vowel, we need to determine where to place it
 
-      // Case 2: It's the last character in the word - use carrier
+      // It's the last character in the word - use carrier
       if (i === text.length - 1) {
         processedWord.push(tengwarMap['telco']);
         processedWord.push(englishToTengwar[char].tehta);
@@ -410,7 +410,7 @@ function transcribeToTengwar(text) {
         continue;
       }
 
-      // Case 3: It's followed by another vowel - use carrier
+      // It's followed by another vowel - use carrier
       if ('aeiou'.includes(text[i + 1].toLowerCase())) {
         processedWord.push(tengwarMap['telco']);
         processedWord.push(englishToTengwar[char].tehta);
