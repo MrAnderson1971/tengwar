@@ -475,6 +475,22 @@ function alignLettersToPhonemes(word, pronunciation) {
     return result;
 }
 
+/*
+S that sounds like Z.
+ */
+function isHardS(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
+        return false;
+    }
+
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.phoneme.includes('Z')) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Improved disambiguation for NG digraph
 function isNgDigraphImproved(word, position, pronunciation, alignment) {
     if (!pronunciation || !alignment) {
@@ -996,6 +1012,13 @@ function transcribeToTengwar(text) {
                     result.push(tengwarMap['oore']);
                 } else {
                     result.push(englishToTengwar['r'].char);
+                }
+                i++;
+            } else if (char === 's') {
+                if (isHardS(processedText, i, pronunciation, alignment)) {
+                    result.push(englishToTengwar['z'].char);
+                } else {
+                    result.push(englishToTengwar['s'].char);
                 }
                 i++;
             } else if (englishToTengwar[char] && englishToTengwar[char].char) {
