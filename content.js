@@ -136,11 +136,25 @@ function processTextNode(textNode) {
   const fragments = [];
   let lastIndex = 0;
 
+  // Special case for "of the" phrases before processing individual words
+  let processedText = text.replace(/\bof the\b/gi, (match) => {
+    const placeholder = "§§OFTHE§§"; // Unique placeholder
+    fragments.push({
+      text: "W;", // extended umbar doubled
+      isTengwar: true,
+      original: match
+    });
+    return placeholder;
+  });
+
   // Find all alphabetical words
   const wordRegex = /[a-zA-Z]+/g;
   let match;
 
   while ((match = wordRegex.exec(text)) !== null) {
+    // Skip "of the" placeholders we've already processed
+    if (match[0] === "OFTHE") continue;
+
     // Add text before the current word
     if (match.index > lastIndex) {
       fragments.push({
@@ -149,12 +163,23 @@ function processTextNode(textNode) {
       });
     }
 
-    // Add the tengwar word
-    fragments.push({
-      text: transcribeToTengwar(match[0]),
-      isTengwar: true,
-      original: match[0]
-    });
+    // Process specific common words
+    const lowerCaseWord = match[0].toLowerCase();
+    if (lowerCaseWord === "a" || lowerCaseWord === "the" ||
+        lowerCaseWord === "of" || lowerCaseWord === "and") {
+      fragments.push({
+        text: transcribeToTengwar(match[0]),
+        isTengwar: true,
+        original: match[0]
+      });
+    } else {
+      // Add the tengwar word (regular processing)
+      fragments.push({
+        text: transcribeToTengwar(match[0]),
+        isTengwar: true,
+        original: match[0]
+      });
+    }
 
     lastIndex = match.index + match[0].length;
   }
@@ -225,129 +250,147 @@ function setupMutationObserver() {
   });
 }
 
+// Mapping based on the actual characters from the compiled LaTeX document
+// This maps LaTeX commands to their corresponding characters in the Annatar font
+const tengwarMap = {
+  // Tengwar consonants (from the LaTeX command to actual character output)
+  'tinco': '1',       // \Ttinco
+  'parma': 'q',       // \Tparma
+  'calma': 'a',       // \Tcalma
+  'quesse': 'z',      // \Tquesse
+  'ando': '2',        // \Tando
+  'umbar': 'w',       // \Tumbar
+  'anga': 's',        // \Tanga
+  'ungwe': 'x',       // \Tungwe
+  'thuule': '3',      // \Tthuule
+  'formen': 'e',      // \Tformen
+  'aha': 'd',         // \Taha
+  'hwesta': 'r',      // \Thwesta
+  'anto': '4',        // \Tanto
+  'ampa': 'r',        // \Tampa
+  'anca': 'f',        // \Tanca
+  'unque': 'v',       // \Tunque
+  'nuumen': '5',      // \Tnuumen
+  'malta': 't',       // \Tmalta
+  'noldo': 'g',       // \Tnoldo
+  'nwalme': 'b',      // \Tnwalme
+  'oore': '6',        // \Toore
+  'vala': 'y',        // \Tvala
+  'anna': 'h',        // \Tanna
+  'vilya': 'n',       // \Tvilya
+  'roomen': '7',      // \Troomen
+  'arda': 'i',        // \Tarda
+  'lambe': 'j',       // \Tlambe
+  'alda': 'k',        // \Talda
+  'silme': '8',       // \Tsilme
+  'silmenuquerna': 'i', // \Tsilmenuquerna
+  'esse': ';',        // \Tesse
+  'essenuquerna': ',', // \Tessenuquerna
+  'hyarmen': '8',     // \Thyarmen
+  'hwesta-sindarinwa': 'o', // \Thwestasindarinwa
+  'yanta': 'm',       // \Tyanta
+  'uure': '9',        // \Tuure
+  'telco': '`',       // \Ttelco
+  'osse': ']',        // \Tosse - Added for the indefinite article "a"
+
+  // Tehtar (diacritical marks)
+  'three-dots': 'E',  // \TTthreedots (a)
+  'acute': 'R',       // \TTacute (e)
+  'dot': 'T',         // \TTdot (i)
+  'right-curl': 'Y',  // \TTrightcurl (o)
+  'left-curl': 'U',   // \TTleftcurl (u)
+  'nasalizer': 'p',   // \TTnasalizer
+  'doubler': ';',     // \TTdoubler
+  'tilde': 'ê',       // \TTtilde
+  'dot-below': 'Ê',   // \TTdotbelow
+  'caron': 'Ù',       // \TTcaron
+  'two-dots-below': 'Í', // \TTtwodotsbelow
+  'left-hook': '|',   // \Tlefthook
+
+  // Punctuation
+  'space': ' ',       // \Ts
+  'centered-dot': '=', // \Tcentereddot
+  'centered-tilde': '\\', // \Tcenteredtilde
+
+  'extended-ando': '@', // \Textendedando
+  'extended-umbar': 'W', // \Textendedumbar
+};
+
+// English mode mapping (simplified for this extension)
+const englishToTengwar = {
+  // Basic vowels
+  'a': { tehta: tengwarMap['three-dots'] },
+  'e': { tehta: tengwarMap['acute'] },
+  'i': { tehta: tengwarMap['dot'] },
+  'o': { tehta: tengwarMap['right-curl'] },
+  'u': { tehta: tengwarMap['left-curl'] },
+
+  // Basic consonants
+  't': { char: tengwarMap['tinco'] },
+  'nt' : {char : tengwarMap['tinco'] + tengwarMap['nasalizer']},
+  'p': { char: tengwarMap['parma'] },
+  'c': { char: tengwarMap['silmenuquerna'] },
+  'ch': {char: tengwarMap['calma']},
+  'k': { char: tengwarMap['quesse'] },
+  'q': { char: tengwarMap['quesse'] },
+  'qu': {char: tengwarMap['quesse'] + tengwarMap['tilde'] },
+  'd': { char: tengwarMap['ando'] },
+  'b': { char: tengwarMap['umbar'] },
+  'g': { char: tengwarMap['ungwe'] },
+  'ng': { char: tengwarMap['nwalme'] },
+  'th': { char: tengwarMap['thuule'] },
+  'f': { char: tengwarMap['formen'] },
+  'ph': {char: tengwarMap['formen']},
+  'h': { char: tengwarMap['hyarmen'] },
+  'hw': { char: tengwarMap['hwesta'] },
+  'wh': { char: tengwarMap['hwesta'] },
+  'nd': { char: tengwarMap['ando'] + tengwarMap['nasalizer'] },
+  'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
+  'mp' : {char : tengwarMap['parma'] + tengwarMap['nasalizer'] },
+  'nk': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] },
+  'nq': { char: tengwarMap['unque'] },
+  'n': { char: tengwarMap['nuumen'] },
+  'm': { char: tengwarMap['malta'] },
+  'r': { char: tengwarMap['oore'] },
+  'v': { char: tengwarMap['ampa'] },
+  'w': { char: tengwarMap['vala'] },
+  'rd': { char: tengwarMap['arda'] },
+  'l': { char: tengwarMap['lambe'] },
+  'ld': { char: tengwarMap['alda'] },
+  's': { char: tengwarMap['silme'] },
+  'z': { char: tengwarMap['essenuquerna'] },
+  'sh': { char: tengwarMap['aha'] },
+  'y': { char: tengwarMap['anna'] },
+  'gh' : {char: tengwarMap['unque'] },
+  'x' : {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
+  'j': {char: tengwarMap['anga']},
+
+  // Special vowel carriers for initial vowels
+  'initial-a': { char: tengwarMap['telco'], tehta: tengwarMap['three-dots'] },
+  'initial-e': { char: tengwarMap['telco'], tehta: tengwarMap['acute'] },
+  'initial-i': { char: tengwarMap['telco'], tehta: tengwarMap['dot'] },
+  'initial-o': { char: tengwarMap['telco'], tehta: tengwarMap['right-curl'] },
+  'initial-u': { char: tengwarMap['telco'], tehta: tengwarMap['left-curl'] },
+};
+
 // Function to transcribe text to Tengwar
 function transcribeToTengwar(text) {
-  // Mapping based on the actual characters from the compiled LaTeX document
-  // This maps LaTeX commands to their corresponding characters in the Annatar font
-  const tengwarMap = {
-    // Tengwar consonants (from the LaTeX command to actual character output)
-    'tinco': '1',       // \Ttinco
-    'parma': 'q',       // \Tparma
-    'calma': 'a',       // \Tcalma
-    'quesse': 'z',      // \Tquesse
-    'ando': '2',        // \Tando
-    'umbar': 'w',       // \Tumbar
-    'anga': 's',        // \Tanga
-    'ungwe': 'x',       // \Tungwe
-    'thuule': '3',      // \Tthuule
-    'formen': 'e',      // \Tformen
-    'aha': 'd',         // \Taha
-    'hwesta': 'r',      // \Thwesta
-    'anto': '4',        // \Tanto
-    'ampa': 'r',        // \Tampa
-    'anca': 'f',        // \Tanca
-    'unque': 'v',       // \Tunque
-    'nuumen': '5',      // \Tnuumen
-    'malta': 't',       // \Tmalta
-    'noldo': 'g',       // \Tnoldo
-    'nwalme': 'b',      // \Tnwalme
-    'oore': '6',        // \Toore
-    'vala': 'y',        // \Tvala
-    'anna': 'h',        // \Tanna
-    'vilya': 'n',       // \Tvilya
-    'roomen': '7',      // \Troomen
-    'arda': 'i',        // \Tarda
-    'lambe': 'j',       // \Tlambe
-    'alda': 'k',        // \Talda
-    'silme': '8',       // \Tsilme
-    'silmenuquerna': 'i', // \Tsilmenuquerna
-    'esse': ';',        // \Tesse
-    'essenuquerna': ',', // \Tessenuquerna
-    'hyarmen': '8',     // \Thyarmen
-    'hwesta-sindarinwa': 'o', // \Thwestasindarinwa
-    'yanta': 'm',       // \Tyanta
-    'uure': '9',        // \Tuure
-    'telco': '`',       // \Ttelco
-
-    // Tehtar (diacritical marks)
-    'three-dots': 'E',  // \TTthreedots (a)
-    'acute': 'R',       // \TTacute (e)
-    'dot': 'T',         // \TTdot (i)
-    'right-curl': 'Y',  // \TTrightcurl (o)
-    'left-curl': 'U',   // \TTleftcurl (u)
-    'nasalizer': 'p',   // \TTnasalizer
-    'doubler': ';',     // \TTdoubler
-    'tilde': 'ê',       // \TTtilde
-    'dot-below': 'Ê',   // \TTdotbelow
-    'caron': 'Ù',       // \TTcaron
-    'two-dots-below': 'Í', // \TTtwodotsbelow
-    'left-hook': '|',   // \Tlefthook
-
-    // Punctuation
-    'space': ' ',       // \Ts
-    'centered-dot': '=', // \Tcentereddot
-    'centered-tilde': '\\', // \Tcenteredtilde
-
-    'extended-ando': '@', // \Textendedando
-    'extended-umbar': 'W', // \Textendedumbar
-  };
-
-  // English mode mapping (simplified for this extension)
-  const englishToTengwar = {
-    // Basic vowels
-    'a': { tehta: tengwarMap['three-dots'] },
-    'e': { tehta: tengwarMap['acute'] },
-    'i': { tehta: tengwarMap['dot'] },
-    'o': { tehta: tengwarMap['right-curl'] },
-    'u': { tehta: tengwarMap['left-curl'] },
-
-    // Basic consonants
-    't': { char: tengwarMap['tinco'] },
-    'nt' : {char : tengwarMap['tinco'] + tengwarMap['nasalizer']},
-    'p': { char: tengwarMap['parma'] },
-    'c': { char: tengwarMap['silmenuquerna'] },
-    'ch': {char: tengwarMap['calma']},
-    'k': { char: tengwarMap['quesse'] },
-    'q': { char: tengwarMap['quesse'] },
-    'qu': {char: tengwarMap['quesse'] + tengwarMap['tilde'] },
-    'd': { char: tengwarMap['ando'] },
-    'b': { char: tengwarMap['umbar'] },
-    'g': { char: tengwarMap['ungwe'] },
-    'ng': { char: tengwarMap['nwalme'] },
-    'th': { char: tengwarMap['thuule'] },
-    'f': { char: tengwarMap['formen'] },
-    'ph': {char: tengwarMap['formen']},
-    'h': { char: tengwarMap['hyarmen'] },
-    'hw': { char: tengwarMap['hwesta'] },
-    'wh': { char: tengwarMap['hwesta'] },
-    'nd': { char: tengwarMap['ando'] + tengwarMap['nasalizer'] },
-    'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
-    'mp' : {char : tengwarMap['parma'] + tengwarMap['nasalizer'] },
-    'nk': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] },
-    'nq': { char: tengwarMap['unque'] },
-    'n': { char: tengwarMap['nuumen'] },
-    'm': { char: tengwarMap['malta'] },
-    'r': { char: tengwarMap['oore'] },
-    'v': { char: tengwarMap['ampa'] },
-    'w': { char: tengwarMap['vala'] },
-    'rd': { char: tengwarMap['arda'] },
-    'l': { char: tengwarMap['lambe'] },
-    'ld': { char: tengwarMap['alda'] },
-    's': { char: tengwarMap['silme'] },
-    'z': { char: tengwarMap['essenuquerna'] },
-    'sh': { char: tengwarMap['aha'] },
-    'y': { char: tengwarMap['anna'] },
-    'gh' : {char: tengwarMap['unque'] },
-    'x' : {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
-    'j': {char: tengwarMap['anga']},
-
-    // Special vowel carriers for initial vowels
-    'initial-a': { char: tengwarMap['telco'], tehta: tengwarMap['three-dots'] },
-    'initial-e': { char: tengwarMap['telco'], tehta: tengwarMap['acute'] },
-    'initial-i': { char: tengwarMap['telco'], tehta: tengwarMap['dot'] },
-    'initial-o': { char: tengwarMap['telco'], tehta: tengwarMap['right-curl'] },
-    'initial-u': { char: tengwarMap['telco'], tehta: tengwarMap['left-curl'] },
-  };
+  // Special cases for common English words
+  if (text.toLowerCase() === "a") {
+    return tengwarMap["osse"];
+  }
+  if (text.toLowerCase() === "the") {
+    return tengwarMap["extended-ando"];
+  }
+  if (text.toLowerCase() === "of") {
+    return tengwarMap["extended-umbar"];
+  }
+  if (text.toLowerCase() === "of the" || text.toLowerCase() === "ofthe") {
+    return tengwarMap["extended-umbar"] + tengwarMap["doubler"];
+  }
+  if (text.toLowerCase() === "and") {
+    return tengwarMap["ando"] + tengwarMap["nasalizer"];
+  }
 
   // Process the text (only alphabetical words)
   const processedWord = [];
@@ -359,15 +402,6 @@ function transcribeToTengwar(text) {
     // Check if this character is a vowel
     if ('aeiou'.includes(char)) {
       // If this is a vowel, we need to determine where to place it
-
-      // Case 1: It's the first character in the word - use special initial vowel carrier
-      if (i === 0) {
-        const initialVowelKey = 'initial-' + char;
-        processedWord.push(englishToTengwar[initialVowelKey].char);
-        processedWord.push(englishToTengwar[initialVowelKey].tehta);
-        i++;
-        continue;
-      }
 
       // Case 2: It's the last character in the word - use carrier
       if (i === text.length - 1) {
