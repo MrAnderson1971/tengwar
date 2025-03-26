@@ -863,6 +863,193 @@ function getPronunciation(word) {
     return pronunciation;
 }
 
+// Function to detect if vowels are in the same syllable using pronunciation data
+function isDiphthong(word, position, pronunciation) {
+    // If not enough characters for a diphthong
+    if (position >= word.length - 1) {
+        return false;
+    }
+
+    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
+    const char = word[position].toLowerCase();
+    const nextChar = word[position + 1].toLowerCase();
+
+    // Both characters must be vowels
+    if (!vowels.includes(char) || !vowels.includes(nextChar)) {
+        return false;
+    }
+
+    // Common known diphthongs in English
+    const knownDiphthongs = [
+        'ai', 'ay', 'au', 'aw',
+        'ei', 'ey', 'ea', 'eu', 'ew',
+        'oi', 'oy', 'ou', 'ow',
+        'ui', 'uy', 'ue'
+    ];
+
+    const possibleDiphthong = char + nextChar;
+
+    // ALWAYS exclude common patterns that are never diphthongs
+    // regardless of pronunciation data
+
+    // 1. Specific words we know have syllable breaks
+    const noTreatAsDiphthong = [
+        'wikipedia', 'piano', 'video', 'radio', 'violin',
+        'diet', 'quiet', 'client', 'dial', 'trial',
+        'create', 'react', 'reality', 'theatre', 'area',
+        'biography', 'geology', 'theology', 'theory'
+    ];
+
+    // Check if our word is in the blacklist or contains one of these words
+    for (const exclude of noTreatAsDiphthong) {
+        if (word.toLowerCase() === exclude ||
+            word.toLowerCase().includes(exclude)) {
+            return false;
+        }
+    }
+
+    // 2. Pattern for ia/io/iu where typically i forms its own syllable
+    // e.g., "di-a-" in "diagram", "biography", "di-o-" in "dioxide"
+    if ((possibleDiphthong === 'ia' || possibleDiphthong === 'io' || possibleDiphthong === 'iu') &&
+        position > 0 && !vowels.includes(word[position-1])) {
+        // The pattern consonant+i+a/o/u is usually separate syllables
+        return false;
+    }
+
+    // 3. Common prefixes with syllable breaks
+    const prefixesWithBreaks = ['geo', 'neo', 'theo', 'bio'];
+    for (const prefix of prefixesWithBreaks) {
+        if (word.substring(0, prefix.length).toLowerCase() === prefix &&
+            position === prefix.length - 1) {
+            return false;
+        }
+    }
+
+    // Use pronunciation data if available
+    if (pronunciation) {
+        // Split into phonemes
+        const phonemes = pronunciation.split(' ');
+
+        // We need a proper mapping to determine which letter corresponds to which phoneme
+        const alignment = alignLettersToPhonemes(word, pronunciation);
+        if (alignment) {
+            // Check if the two vowels map to a single phoneme (true diphthong)
+            // or map to separate phonemes (separate syllables)
+            let foundFirstVowel = false;
+            let firstVowelPhoneme = null;
+            let secondVowelPhoneme = null;
+
+            for (const entry of alignment) {
+                if (entry.startIndex === position) {
+                    foundFirstVowel = true;
+                    firstVowelPhoneme = entry.phoneme;
+                } else if (entry.startIndex === position + 1 && foundFirstVowel) {
+                    secondVowelPhoneme = entry.phoneme;
+                    break;
+                }
+            }
+
+            // If both vowels map to the same phoneme, they're likely a diphthong
+            if (firstVowelPhoneme && !secondVowelPhoneme) {
+                // Check if the phoneme is a known diphthong phoneme
+                const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW", "UW"];
+                for (const dp of diphthongPhonemes) {
+                    if (firstVowelPhoneme.startsWith(dp)) {
+                        return true;
+                    }
+                }
+            }
+
+            // If both vowels have their own phonemes with different stress markers,
+            // they're in different syllables
+            if (firstVowelPhoneme && secondVowelPhoneme) {
+                // Extract stress markers (0, 1, 2)
+                const firstStress = firstVowelPhoneme.match(/[0-9]$/);
+                const secondStress = secondVowelPhoneme.match(/[0-9]$/);
+
+                // If both vowels have stress markers and they're different,
+                // we know they're in separate syllables
+                if (firstStress && secondStress && firstStress[0] !== secondStress[0]) {
+                    return false;
+                }
+
+                // If they have the same stress or one is unstressed,
+                // it's harder to determine
+            }
+        }
+    }
+
+    // Fallback to our list of known diphthongs
+    // Let's only consider known diphthongs that frequently
+    // appear as true diphthongs in English
+    const commonDiphthongs = [
+        'ai', 'ay', 'au', 'aw',  // as in "sail", "ray", "caught", "claw"
+        'ei', 'ey',              // as in "vein", "they"
+        'oi', 'oy',              // as in "coin", "boy"
+        'ou', 'ow'               // as in "out", "cow"
+    ];
+
+    return commonDiphthongs.includes(possibleDiphthong);
+}
+
+// Get diphthong type based on second vowel
+function getDiphthongType(word, position) {
+    const nextChar = word[position + 1].toLowerCase();
+    return nextChar;
+}
+
+// Handle diphthongs based on the rules:
+// xa = x as diacritic + osse
+// xe = x as diacritic + telco + dot underneath
+// xi = treat i as consonant y
+// xu = treat u as consonant w
+// xo = use telco with first vowel diacritic + right-curl for 'o'
+function handleDiphthong(word, position, result, vowel) {
+    const char = word[position].toLowerCase();
+    const diphthongType = getDiphthongType(word, position);
+
+    // Store current diacritic for first vowel
+    const firstVowelTehta = englishToTengwar[char].tehta;
+
+    switch (diphthongType) {
+        case 'a':
+            // xa = x as diacritic + osse
+            result.push(tengwarMap['osse']);
+            result.push(firstVowelTehta);
+            return 2; // Skip both vowels
+
+        case 'e':
+            // xe = x as diacritic + telco + dot underneath
+            result.push(tengwarMap['telco']);
+            result.push(firstVowelTehta);
+            result.push(tengwarMap['dot-below']); // Silent e marker
+            return 2; // Skip both vowels
+
+        case 'i':
+            // xi = treat i as consonant y
+            result.push(englishToTengwar['y'].char); // Use 'anna' for consonant y
+            result.push(firstVowelTehta);
+            return 2; // Skip both vowels
+
+        case 'u':
+            // xu = treat u as consonant w
+            result.push(englishToTengwar['w'].char); // Use 'vala' for consonant w
+            result.push(firstVowelTehta);
+            return 2; // Skip both vowels
+
+        case 'o':
+            // xo = use telco with first vowel diacritic + right-curl for 'o'
+            result.push(tengwarMap['telco']);
+            result.push(firstVowelTehta);
+            result.push(tengwarMap['right-curl']); // 'o' diacritic
+            return 2; // Skip both vowels
+
+        default:
+            // Not a recognized diphthong type
+            return 0; // Don't skip anything
+    }
+}
+
 // Update the main transcribeToTengwar function to use the improved disambiguation methods
 function transcribeToTengwar(text) {
     const lowerText = text.toLowerCase();
@@ -882,6 +1069,17 @@ function transcribeToTengwar(text) {
     while (i < processedText.length) {
         const char = processedText[i].toLowerCase();
         let found = false;
+
+        // Check for diphthongs
+        if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation)) {
+            const charsToSkip = handleDiphthong(processedText, i, result, vowel);
+            if (charsToSkip > 0) {
+                i += charsToSkip;
+                vowel = ''; // Reset vowel since we've handled it
+                found = true;
+                continue;
+            }
+        }
 
         // Check for multi-letter combinations (digraphs/trigraphs)
         for (let len = 3; len >= 2; len--) {
