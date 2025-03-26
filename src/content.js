@@ -141,52 +141,6 @@ const specialWords = {
     'ofthe': tengwarMap['extended-umbar'] + tengwarMap['doubler'],
 };
 
-// Helper functions that use the CMU dictionary when available
-
-function isSoftCUsingDict(word, index, pronunciation) {
-    // If we have a dictionary pronunciation, decide based on phoneme content.
-    // In CMU entries, a soft "c" is usually rendered as an S sound,
-    // while a hard "c" appears as a K sound.
-    if (pronunciation) {
-        if (pronunciation.includes("S") && !pronunciation.includes("K")) {
-            return true;
-        }
-    }
-    // Otherwise, fall back to heuristic based on following letter.
-    return isSoftC(word, index);
-}
-
-function isConsonantYUsingDict(word, index, pronunciation) {
-    // In the CMU dictionary, a consonantal y is usually rendered as "Y"
-    // while a vowel y often appears as a different vowel phoneme.
-    if (index > 0 && 'aeiou'.includes(word[index - 1])) {
-        return true;
-    }
-    if (pronunciation) {
-        return !(!!pronunciation.includes("IY") || !!pronunciation.includes("AY"));
-    }
-    return isConsonantY(word, index);
-}
-
-function isHardRUsingDict(word, index, pronunciation) {
-    // For now, we defer to the original heuristic for r.
-    return isHardR(word, index);
-}
-
-function hasSilentEUsingDict(word, pronunciation) {
-    if (pronunciation && word[word.length - 1].toLowerCase() === 'e') {
-        // List of vowel phonemes in CMU dictionary
-        const vowelsPhonemes = ["AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW"];
-        const lastPhoneme = pronunciation[pronunciation.length - 1];
-        // If the final phoneme is not one of the common vowel sounds,
-        // we consider the final "e" to be silent.
-        if (!vowelsPhonemes.includes(lastPhoneme)) {
-            return true;
-        }
-    }
-    return hasSilentE(word);
-}
-
 // Check tengwar status when page loads
 document.addEventListener('DOMContentLoaded', function() {
     chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function(response) {
@@ -502,7 +456,340 @@ function hasSilentE(word) {
     return hasEarlierVowel && isConsonant;
 }
 
-// Function to transcribe text to Tengwar
+// This function aligns English spelling with CMU dictionary phonemes
+// It returns an array of {letter, phoneme} pairs for better disambiguation
+function alignLettersToPhonemes(word, pronunciation) {
+    if (!pronunciation) return null;
+
+    const result = [];
+    let letterIndex = 0;
+    let phonemeIndex = 0;
+    const phonemes = pronunciation.split(' ');
+
+    // Convert word to lowercase for processing
+    const lowercaseWord = word.toLowerCase();
+
+    while (letterIndex < lowercaseWord.length && phonemeIndex < phonemes.length) {
+        // Handle digraphs and trigraphs first (check ahead for multi-character sequences)
+        let matched = false;
+
+        // Check for known digraphs/trigraphs
+        const digraphs = ['ng', 'th', 'sh', 'ch', 'ph', 'wh', 'qu', 'ck'];
+        const trigraphs = ['tch'];
+
+        // Try trigraphs first
+        for (const trigraph of trigraphs) {
+            if (letterIndex + trigraph.length <= lowercaseWord.length &&
+                lowercaseWord.substring(letterIndex, letterIndex + trigraph.length) === trigraph) {
+
+                // For example 'tch' corresponds to the 'CH' phoneme
+                result.push({
+                    letters: trigraph,
+                    startIndex: letterIndex,
+                    endIndex: letterIndex + trigraph.length - 1,
+                    phoneme: phonemes[phonemeIndex]
+                });
+
+                letterIndex += trigraph.length;
+                phonemeIndex++;
+                matched = true;
+                break;
+            }
+        }
+
+        // If no trigraph matched, try digraphs
+        if (!matched) {
+            for (const digraph of digraphs) {
+                if (letterIndex + digraph.length <= lowercaseWord.length &&
+                    lowercaseWord.substring(letterIndex, letterIndex + digraph.length) === digraph) {
+
+                    // Special handling for 'ng' digraph
+                    if (digraph === 'ng') {
+                        // Check if it's a true 'ng' digraph (NG) or n+g (N G)
+                        // In the CMU dict, 'ng' digraph is typically represented as "NG"
+                        if (phonemes[phonemeIndex] === 'NG') {
+                            result.push({
+                                letters: digraph,
+                                startIndex: letterIndex,
+                                endIndex: letterIndex + digraph.length - 1,
+                                phoneme: 'NG',
+                                isDigraph: true
+                            });
+                            letterIndex += 2;
+                            phonemeIndex++;
+                        } else {
+                            // It's n+g, not a digraph
+                            result.push({
+                                letters: 'n',
+                                startIndex: letterIndex,
+                                endIndex: letterIndex,
+                                phoneme: phonemes[phonemeIndex],
+                                isDigraph: false
+                            });
+                            letterIndex++;
+                            phonemeIndex++;
+                            // We don't increment phonemeIndex again as 'g' will be handled in the next iteration
+                        }
+                    } else {
+                        // Handle other digraphs
+                        result.push({
+                            letters: digraph,
+                            startIndex: letterIndex,
+                            endIndex: letterIndex + digraph.length - 1,
+                            phoneme: phonemes[phonemeIndex],
+                            isDigraph: true
+                        });
+                        letterIndex += digraph.length;
+                        phonemeIndex++;
+                    }
+
+                    matched = true;
+                    break;
+                }
+            }
+        }
+
+        // If no multi-character sequence matched, process single letter
+        if (!matched) {
+            // Skip silent letters (like k in 'know', e in 'make')
+            if (isSilentLetter(lowercaseWord, letterIndex, phonemes, phonemeIndex)) {
+                result.push({
+                    letters: lowercaseWord[letterIndex],
+                    startIndex: letterIndex,
+                    endIndex: letterIndex,
+                    phoneme: null,
+                    isSilent: true
+                });
+                letterIndex++;
+                // Don't increment phonemeIndex for silent letters
+            } else {
+                // Regular letter-to-phoneme mapping
+                result.push({
+                    letters: lowercaseWord[letterIndex],
+                    startIndex: letterIndex,
+                    endIndex: letterIndex,
+                    phoneme: phonemes[phonemeIndex]
+                });
+                letterIndex++;
+                phonemeIndex++;
+            }
+        }
+
+        // Handle special case where one letter represents multiple phonemes
+        // (like 'x' which is 'K S')
+        if (lowercaseWord[letterIndex - 1] === 'x' && phonemes[phonemeIndex - 1] === 'K' &&
+            phonemeIndex < phonemes.length && phonemes[phonemeIndex] === 'S') {
+            // Update the previous entry
+            result[result.length - 1].phoneme = 'K S';
+            result[result.length - 1].isMultiPhoneme = true;
+            phonemeIndex++; // Skip the next phoneme since we've handled it
+        }
+    }
+
+    return result;
+}
+
+// Function to detect silent letters
+function isSilentLetter(word, position, phonemes, phonemeIndex) {
+    const letter = word[position];
+
+    // Common silent letter patterns
+    if (position === 0 && letter === 'k' && position + 1 < word.length && word[position + 1] === 'n') {
+        return true; // Silent k in 'knight', 'know'
+    }
+
+    if (position === 0 && letter === 'p' && position + 1 < word.length &&
+        (word[position + 1] === 's' || word[position + 1] === 't')) {
+        return true; // Silent p in 'psychology', 'pterodactyl'
+    }
+
+    if (position === 0 && letter === 'g' && position + 1 < word.length && word[position + 1] === 'n') {
+        return true; // Silent g in 'gnome'
+    }
+
+    return letter === 'e' && position === word.length - 1;
+}
+
+// Improved disambiguation for NG digraph
+function isNgDigraphImproved(word, position, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original heuristic if no pronunciation available
+        return isNgDigraph(word, position);
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) {
+        return isNgDigraph(word, position);
+    }
+
+    // First, check if there's a direct 'ng' entry at this position
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.letters === 'ng') {
+            // It's a digraph if it maps to a single NG phoneme
+            return entry.isDigraph === true;
+        }
+    }
+
+    // If we didn't find a direct 'ng' entry, check if there's an 'n' at this position
+    // followed by a 'g' at the next position - this means it's NOT a digraph
+    for (let i = 0; i < alignment.length - 1; i++) {
+        if (alignment[i].startIndex === position && alignment[i].letters === 'n' &&
+            alignment[i+1].startIndex === position + 1 && alignment[i+1].letters === 'g') {
+            // We found separate 'n' and 'g' entries, so it's not a digraph
+            return false;
+        }
+    }
+
+    // Fall back to the original heuristic if we couldn't determine from alignment
+    return isNgDigraph(word, position);
+}
+
+// Improved disambiguation for soft/hard C
+function isSoftCImproved(word, position, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original heuristic if no pronunciation available
+        return isSoftC(word, position);
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) return isSoftC(word, position);
+
+    // Find the entry for this position
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.letters === 'c') {
+            // In CMU dictionary, soft C typically has an S sound
+            return entry.phoneme && entry.phoneme.startsWith('S');
+        }
+    }
+
+    // Fall back to the original heuristic
+    return isSoftC(word, position);
+}
+
+// Improved disambiguation for consonant Y
+function isConsonantYImproved(word, position, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original heuristic if no pronunciation available
+        return isConsonantY(word, position);
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) return isConsonantY(word, position);
+
+    // Find the entry for this position
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.letters === 'y') {
+            // In CMU dictionary, consonant Y is typically a 'Y' phoneme
+            return entry.phoneme === 'Y';
+        }
+    }
+
+    // Fall back to the original heuristic
+    return isConsonantY(word, position);
+}
+
+// Improved detection of y vowel type (long vs short)
+function getYVowelTypeImproved(word, position, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original implementation
+        return getYVowelType(word, position, pronunciation);
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) return getYVowelType(word, position, pronunciation);
+
+    // Find the entry for this position
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.letters === 'y') {
+            // Check the specific phoneme for this 'y'
+            if (entry.phoneme) {
+                // Long Y sounds in CMU dict: 'AY', 'AY0', 'AY1', 'AY2'
+                // These correspond to the 'y' sound in words like "my", "why", "sky"
+                if (entry.phoneme.startsWith('AY')) {
+                    return 'long';
+                }
+
+                // Short Y sounds in CMU dict: 'IY', 'IY0', 'IY1', 'IY2', 'IH', 'IH0', 'IH1', 'IH2'
+                // These correspond to the 'y' sound in words like "happy", "quickly"
+                if (entry.phoneme.startsWith('IY') || entry.phoneme.startsWith('IH')) {
+                    return 'short';
+                }
+            }
+        }
+    }
+
+    // Fall back to the original implementation
+    return getYVowelType(word, position, pronunciation);
+}
+
+// Improved disambiguation for hard R
+function isHardRImproved(word, position, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original heuristic if no pronunciation available
+        return isHardR(word, position);
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) return isHardR(word, position);
+
+    // Find the entry for this position
+    for (const entry of alignment) {
+        if (entry.startIndex === position && entry.letters === 'r') {
+            // Check surrounding phonetic context
+            // Hard R typically appears in certain positions like post-vowel pre-consonant
+            const phonemeIndex = alignment.indexOf(entry);
+            const prevPhoneme = phonemeIndex > 0 ? alignment[phonemeIndex - 1].phoneme : null;
+            const nextPhoneme = phonemeIndex < alignment.length - 1 ? alignment[phonemeIndex + 1].phoneme : null;
+
+            // If previous phoneme is a vowel sound and next is not a vowel sound
+            const isVowelPhoneme = (p) => p && /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/.test(p);
+
+            return isVowelPhoneme(prevPhoneme) && (!nextPhoneme || !isVowelPhoneme(nextPhoneme));
+        }
+    }
+
+    // Fall back to the original heuristic
+    return isHardR(word, position);
+}
+
+// Improved detection of silent E
+function hasSilentEImproved(word, pronunciation) {
+    if (!pronunciation) {
+        // Fall back to the original heuristic if no pronunciation available
+        return hasSilentE(word);
+    }
+
+    if (word[word.length - 1].toLowerCase() !== 'e') {
+        return false;
+    }
+
+    const alignment = alignLettersToPhonemes(word, pronunciation);
+    if (!alignment) return hasSilentE(word);
+
+    // Check if the final 'e' is mapped to a null phoneme (silent)
+    const finalEntry = alignment.find(entry => entry.startIndex === word.length - 1);
+    return finalEntry && finalEntry.isSilent;
+}
+
+// Function to get a cached or new pronunciation
+function getPronunciation(word) {
+    // Check cache first
+    if (pronunciationCache.has(word)) {
+        return pronunciationCache.get(word);
+    }
+
+    // Get from dictionary
+    let pronunciation = null;
+    if (dictionary[word.toLowerCase()]) {
+        pronunciation = dictionary[word.toLowerCase()];
+        // Cache the result
+        pronunciationCache.set(word, pronunciation);
+    }
+
+    return pronunciation;
+}
+
+// Update the main transcribeToTengwar function to use the improved disambiguation methods
 function transcribeToTengwar(text) {
     const lowerText = text.toLowerCase();
     if (specialWords[lowerText]) {
@@ -511,13 +798,8 @@ function transcribeToTengwar(text) {
 
     const processedText = removeSilentLetters(text);
 
-    // Attempt to get a pronunciation from the CMU dictionary.
-    let pronunciation = null;
-    if (dictionary[lowerText]) {
-        // Assume the dictionary returns an array of pronunciations;
-        // choose the first one.
-        pronunciation = dictionary[lowerText];
-    }
+    // Get pronunciation
+    const pronunciation = getPronunciation(lowerText);
 
     const result = [];
     let i = 0;
@@ -533,7 +815,7 @@ function transcribeToTengwar(text) {
                 const ngram = processedText.substring(i, i + len).toLowerCase();
 
                 if (ngram === 'ng') {
-                    if (isNgDigraph(processedText, i)) {
+                    if (isNgDigraphImproved(processedText, i, pronunciation)) {
                         result.push(englishToTengwar['ng'].char);
                         i += 2;
                         found = true;
@@ -572,8 +854,8 @@ function transcribeToTengwar(text) {
                 result.push(tengwarMap['doubler']);
                 i++;
             } else if (char === 'c') {
-                // Use the CMU dictionary (if available) to decide soft vs. hard c.
-                if (isSoftCUsingDict(processedText, i, pronunciation)) {
+                // Use improved soft c detection
+                if (isSoftCImproved(processedText, i, pronunciation)) {
                     // Soft c: use silmenuquerna
                     result.push(tengwarMap['silmenuquerna']);
                 } else {
@@ -582,11 +864,12 @@ function transcribeToTengwar(text) {
                 }
                 i++;
             } else if (char === 'y') {
-                // Use the dictionary to decide if y is consonantal or vowel.
-                if (isConsonantYUsingDict(processedText, i, pronunciation)) {
+                // Use improved consonantal y detection
+                if (isConsonantYImproved(processedText, i, pronunciation)) {
                     result.push(englishToTengwar['y'].char);
                 } else {
-                    const yType = getYVowelType(processedText, i, pronunciation);
+                    // Use improved vowel y type detection
+                    const yType = getYVowelTypeImproved(processedText, i, pronunciation);
                     if (yType === 'long') {
                         if (vowel !== '') {
                             result.push(tengwarMap['telco']);
@@ -594,8 +877,6 @@ function transcribeToTengwar(text) {
                             vowel = '';
                         }
                         vowel = tengwarMap['caron'];
-                        i++;
-                        continue;
                     } else {
                         if (vowel !== '') {
                             result.push(tengwarMap['telco']);
@@ -603,13 +884,12 @@ function transcribeToTengwar(text) {
                             vowel = '';
                         }
                         vowel = tengwarMap['two-dots-below'];
-                        i++;
-                        continue;
                     }
                 }
                 i++;
             } else if (char === 'r') {
-                if (isHardRUsingDict(processedText, i, pronunciation)) {
+                // Use improved hard r detection
+                if (isHardRImproved(processedText, i, pronunciation)) {
                     result.push(tengwarMap['oore']);
                 } else {
                     result.push(englishToTengwar['r'].char);
@@ -623,6 +903,7 @@ function transcribeToTengwar(text) {
                 i++;
             }
         }
+
         if (vowel !== '') { // add the vowel
             if (i === 0 || !englishToTengwar[processedText[i - 1].toLowerCase()].char) { // add carrier if previous was also a vowel
                 result.push(tengwarMap['telco']);
@@ -632,7 +913,8 @@ function transcribeToTengwar(text) {
         }
     }
 
-    if (hasSilentEUsingDict(processedText, pronunciation)) {
+    // Handle silent e at the end of words
+    if (hasSilentEImproved(processedText, pronunciation)) {
         result.push(tengwarMap['dot-below']);
     } else if (vowel !== '') {
         if (vowel !== tengwarMap['two-dots-below']) { // no carrier for y
