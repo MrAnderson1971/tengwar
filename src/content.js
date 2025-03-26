@@ -962,71 +962,78 @@ function transcribeToTengwar(text) {
         }
 
         if (!found) {
-            if ('aeiou'.includes(char)) {
-                if (vowel !== '') {
-                    result.push(tengwarMap['telco']);
-                    result.push(vowel);
-                    vowel = '';
-                }
-                vowel = englishToTengwar[char].tehta;
-                i++;
-                continue;
-            } else if (i > 0 && (processedText[i] === processedText[i - 1] ||
-                processedText[i] === 'k' && processedText[i - 1] === 'c')) {
-                result.push(tengwarMap['doubler']);
-                i++;
-            } else if (char === 'c') {
-                // Use improved soft c detection
-                if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
-                    // Soft c: use silmenuquerna
-                    result.push(tengwarMap['silmenuquerna']);
-                } else {
-                    // Hard c: use quesse
-                    result.push(englishToTengwar['c'].char);
-                }
-                i++;
-            } else if (char === 'y') {
-                // Use improved consonantal y detection
-                if (isConsonantYImproved(processedText, i, pronunciation)) {
-                    result.push(englishToTengwar['y'].char);
-                    i++;
-                } else {
-                    // Use improved vowel y type detection
-                    const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
+            switch (char) {
+                case 'a': case 'e': case 'i': case 'o': case 'u':
                     if (vowel !== '') {
                         result.push(tengwarMap['telco']);
                         result.push(vowel);
                         vowel = '';
                     }
-                    if (yType === 'long') {
-                        vowel = tengwarMap['caron'];
-                    } else {
-                        vowel = tengwarMap['two-dots-below'];
-                    }
+                    vowel = englishToTengwar[char].tehta;
                     i++;
                     continue;
-                }
-            } else if (char === 'r') {
-                // Use improved hard r detection
-                if (isHardRImproved(processedText, i, pronunciation, alignment)) {
-                    result.push(tengwarMap['oore']);
-                } else {
-                    result.push(englishToTengwar['r'].char);
-                }
-                i++;
-            } else if (char === 's') {
-                if (isHardS(processedText, i, pronunciation, alignment)) {
-                    result.push(englishToTengwar['z'].char);
-                } else {
-                    result.push(englishToTengwar['s'].char);
-                }
-                i++;
-            } else if (englishToTengwar[char] && englishToTengwar[char].char) {
-                result.push(englishToTengwar[char].char);
-                i++;
-            } else {
-                result.push(char);
-                i++;
+                case 'c':
+                    // Use improved soft c detection
+                    if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
+                        // Soft c: use silmenuquerna
+                        result.push(tengwarMap['silmenuquerna']);
+                    } else {
+                        // Hard c: use quesse
+                        result.push(englishToTengwar['c'].char);
+                    }
+                    i++;
+                    break;
+                case 'y':
+                    // Use improved consonantal y detection
+                    if (isConsonantYImproved(processedText, i, pronunciation)) {
+                        result.push(englishToTengwar['y'].char);
+                        i++;
+                    } else {
+                        // Use improved vowel y type detection
+                        const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
+                        if (vowel !== '') {
+                            result.push(tengwarMap['telco']);
+                            result.push(vowel);
+                            vowel = '';
+                        }
+                        if (yType === 'long') {
+                            vowel = tengwarMap['caron'];
+                        } else {
+                            vowel = tengwarMap['two-dots-below'];
+                        }
+                        i++;
+                        continue;
+                    }
+                    break;
+                case 'r':
+                    // Use improved hard r detection
+                    if (isHardRImproved(processedText, i, pronunciation, alignment)) {
+                        result.push(tengwarMap['oore']);
+                    } else {
+                        result.push(englishToTengwar['r'].char);
+                    }
+                    i++;
+                    break;
+                case 's':
+                    if (isHardS(processedText, i, pronunciation, alignment)) {
+                        result.push(englishToTengwar['z'].char);
+                    } else {
+                        result.push(englishToTengwar['s'].char);
+                    }
+                    i++;
+                    break;
+                default:
+                    if (i > 0 && (processedText[i] === processedText[i - 1] ||
+                        processedText[i] === 'k' && processedText[i - 1] === 'c')) {
+                        result.push(tengwarMap['doubler']);
+                        i++;
+                    } else if (englishToTengwar[char] && englishToTengwar[char].char) {
+                        result.push(englishToTengwar[char].char);
+                        i++;
+                    } else {
+                        result.push(char);
+                        i++;
+                    }
             }
         }
 
