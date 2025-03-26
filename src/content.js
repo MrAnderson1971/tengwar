@@ -37,14 +37,14 @@ const tengwarMap = {
     'anna': 'h',        // \Tanna
     'vilya': 'n',       // \Tvilya
     'roomen': '7',      // \Troomen
-    'arda': 'i',        // \Tarda
+    'arda': 'u',        // \Tarda
     'lambe': 'j',       // \Tlambe
     'alda': 'k',        // \Talda
     'silme': '8',       // \Tsilme
     'silmenuquerna': 'i', // \Tsilmenuquerna
     'esse': ';',        // \Tesse
     'essenuquerna': ',', // \Tessenuquerna
-    'hyarmen': '8',     // \Thyarmen
+    'hyarmen': '9',     // \Thyarmen
     'hwesta-sindarinwa': 'o', // \Thwestasindarinwa
     'yanta': 'm',       // \Tyanta
     'uure': '9',        // \Tuure
@@ -137,6 +137,7 @@ const specialWords = {
     'a': tengwarMap['osse'],
     'the': tengwarMap['extended-ando'],
     'of': tengwarMap['extended-umbar'],
+    'and': tengwarMap['ando'] + tengwarMap['nasalizer'],
     'ofthe': tengwarMap['extended-umbar'] + tengwarMap['doubler'],
 };
 
@@ -159,11 +160,7 @@ function isConsonantYUsingDict(word, index, pronunciation) {
     // In the CMU dictionary, a consonantal y is usually rendered as "Y"
     // while a vowel y often appears as a different vowel phoneme.
     if (pronunciation) {
-        if (pronunciation.includes("Y")) {
-            return true;
-        } else {
-            return false;
-        }
+        return !!pronunciation.includes("Y");
     }
     return isConsonantY(word, index);
 }
@@ -236,7 +233,9 @@ function injectTengwarFont() {
 
 // Main function to process the page
 function processPage() {
-    if (!tengwarEnabled) return;
+    if (!tengwarEnabled) {
+        return;
+    }
 
     // Process initial content
     processContent(document.body);
@@ -247,7 +246,9 @@ function processPage() {
 
 // Process content within a container element
 function processContent(container) {
-    if (!container || isElementToSkip(container)) return;
+    if (!container || isElementToSkip(container)) {
+        return;
+    }
 
     // Get all text nodes within the container
     const textNodes = [];
@@ -261,9 +262,8 @@ function processContent(container) {
                 }
                 return NodeFilter.FILTER_ACCEPT;
             }
-        },
-        false
-    );
+        }
+        );
 
     let node;
     // Gather all nodes first to avoid DOM modification during traversal
@@ -277,7 +277,9 @@ function processContent(container) {
 
 // Function to determine if an element should be skipped
 function isElementToSkip(element) {
-    if (!element) return true;
+    if (!element) {
+        return true;
+    }
 
     // Skip if already processed or in skip list
     if (element.classList && (
@@ -313,7 +315,9 @@ function processTextNode(textNode) {
     const parent = textNode.parentNode;
 
     // If the parent is already a tengwar-text or has tengwar-text class, skip
-    if (parent.classList && parent.classList.contains('tengwar-text')) return;
+    if (parent.classList && parent.classList.contains('tengwar-text')) {
+        return;
+    }
 
     // Use regular expression to find all words (sequences of letters)
     const fragments = [];
@@ -321,12 +325,7 @@ function processTextNode(textNode) {
 
     // Special case for "of the" phrases before processing individual words
     text = text.replace(/\bof\s+the\b/gi, (match) => {
-        fragments.push({
-            text: tengwarMap["extended-umbar"] + tengwarMap["doubler"], // extended umbar doubled
-            isTengwar: true,
-            original: match
-        });
-        return "";
+        return "ofthe";
     });
 
     // Find all alphabetical words
@@ -402,7 +401,9 @@ function processTextNode(textNode) {
 // Setup mutation observer to handle dynamic content
 let observer = null;
 function setupMutationObserver() {
-    if (observer) return;
+    if (observer) {
+        return;
+    }
 
     observer = new MutationObserver(function(mutations) {
         // Process in batches to improve performance
@@ -455,7 +456,7 @@ function removeSilentLetters(word) {
 function isConsonantY(word, position) {
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
     const prevChar = position > 0 ? word[position - 1].toLowerCase() : null;
-    return position === 0 || (prevChar && !vowels.includes(prevChar));
+    return position === 0 || (prevChar && vowels.includes(prevChar));
 }
 
 function getYVowelType(word, position) {
@@ -482,8 +483,12 @@ function isHardR(word, position) {
 }
 
 function hasSilentE(word) {
-    if (word.length < 2) return false;
-    if (word[word.length - 1].toLowerCase() !== 'e') return false;
+    if (word.length < 2) {
+        return false;
+    }
+    if (word[word.length - 1].toLowerCase() !== 'e') {
+        return false;
+    }
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
     let hasEarlierVowel = false;
     for (let i = 0; i < word.length - 1; i++) {
@@ -563,6 +568,9 @@ function transcribeToTengwar(text) {
                 vowel = englishToTengwar[char].tehta;
                 i++;
                 continue;
+            } else if (i > 0 && processedText[i] === processedText[i - 1]) {
+                result.push(tengwarMap['doubler']);
+                i++;
             } else if (char === 'c') {
                 // Use the CMU dictionary (if available) to decide soft vs. hard c.
                 if (isSoftCUsingDict(processedText, i, pronunciation)) {
@@ -580,19 +588,23 @@ function transcribeToTengwar(text) {
                 } else {
                     const yType = getYVowelType(processedText, i);
                     if (yType === 'long') {
-                        if (i === 0) {
+                        if (vowel !== '') {
                             result.push(tengwarMap['telco']);
-                            result.push(tengwarMap['caron']);
-                        } else {
-                            result.push(tengwarMap['caron']);
+                            result.push(vowel);
+                            vowel = '';
                         }
+                        vowel = englishToTengwar[char].tehta;
+                        i++;
+                        continue;
                     } else {
-                        if (i === 0) {
+                        if (vowel !== '') {
                             result.push(tengwarMap['telco']);
-                            result.push(tengwarMap['two-dots-below']);
-                        } else {
-                            result.push(tengwarMap['two-dots-below']);
+                            result.push(vowel);
+                            vowel = '';
                         }
+                        vowel = englishToTengwar[char].tehta;
+                        i++;
+                        continue;
                     }
                 }
                 i++;
@@ -620,13 +632,11 @@ function transcribeToTengwar(text) {
         }
     }
 
-    if (vowel !== '') {
-        result.push(tengwarMap['telco']);
-        result.push(vowel);
-    }
-
     if (hasSilentEUsingDict(processedText, pronunciation)) {
         result.push(tengwarMap['dot-below']);
+    } else if (vowel !== '') {
+        result.push(tengwarMap['telco']);
+        result.push(vowel);
     }
 
     return result.join('');
