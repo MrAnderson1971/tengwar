@@ -24,7 +24,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Function to inject Tengwar font
 function injectTengwarFont() {
-  if (fontInjected) return;
+  if (fontInjected) {
+    return;
+  }
 
   const style = document.createElement('style');
   style.id = 'tengwar-font-style';
@@ -237,11 +239,19 @@ function transcribeToTengwar(text) {
     'left-curl': 'U',   // \TTleftcurl (u)
     'nasalizer': 'p',   // \TTnasalizer
     'doubler': ';',     // \TTdoubler
+    'tilde': 'ê',       // \TTtilde
+    'dot-below': 'Ê',   // \TTdotbelow
+    'caron': 'Ù',       // \TTcaron
+    'two-dots-below': 'Í', // \TTtwodotsbelow
+    'left-hook': '|',   // \Tlefthook
 
     // Punctuation
     'space': ' ',       // \Ts
     'centered-dot': '=', // \Tcentereddot
     'centered-tilde': '\\', // \Tcenteredtilde
+
+    'extended-ando': '@', // \Textendedando
+    'extended-umbar': 'W', // \Textendedumbar
   };
 
   // English mode mapping (simplified for this extension)
@@ -259,28 +269,30 @@ function transcribeToTengwar(text) {
     'c': { char: tengwarMap['calma'] },
     'k': { char: tengwarMap['quesse'] },
     'q': { char: tengwarMap['quesse'] },
+    'qu': {char: tengwarMap['quesse'] + tengwarMap['tilde'] },
     'd': { char: tengwarMap['ando'] },
     'b': { char: tengwarMap['umbar'] },
     'g': { char: tengwarMap['ungwe'] },
-    'ng': { char: tengwarMap['ungwe'] },
+    'ng': { char: tengwarMap['nwalme'] },
     'th': { char: tengwarMap['thuule'] },
     'f': { char: tengwarMap['formen'] },
-    'h': { char: tengwarMap['aha'] },
+    'ph': {char: tengwarMap['formen']},
+    'h': { char: tengwarMap['hyarmen'] },
     'hw': { char: tengwarMap['hwesta'] },
     'wh': { char: tengwarMap['hwesta'] },
     'nd': { char: tengwarMap['ando'] + tengwarMap['nasalizer'] },
     'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
     'mp' : {char : tengwarMap['parma'] + tengwarMap['nasalizer'] },
-    'nk': { char: tengwarMap['anca'] },
+    'nk': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] },
     'nq': { char: tengwarMap['unque'] },
     'n': { char: tengwarMap['nuumen'] },
     'm': { char: tengwarMap['malta'] },
-    'ny': { char: tengwarMap['noldo'] },
-    'nw': { char: tengwarMap['nwalme'] },
+    //'ny': { char: tengwarMap['noldo'] },
+    //'nw': { char: tengwarMap['nwalme'] },
     'r': { char: tengwarMap['oore'] },
-    'v': { char: tengwarMap['vala'] },
-    'w': { char: tengwarMap['vilya'] },
-    'ro': { char: tengwarMap['roomen'] },
+    //'v': { char: tengwarMap['vala'] },
+    'w': { char: tengwarMap['vala'] },
+    //'ro': { char: tengwarMap['roomen'] },
     'rd': { char: tengwarMap['arda'] },
     'l': { char: tengwarMap['lambe'] },
     'ld': { char: tengwarMap['alda'] },
@@ -289,6 +301,7 @@ function transcribeToTengwar(text) {
     'sh': { char: tengwarMap['aha'] },
     'y': { char: tengwarMap['anna'] },
     'gh' : {char: tengwarMap['unque'] },
+    'x' : {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
 
     // Special vowel carriers for initial vowels
     'initial-a': { char: tengwarMap['telco'], tehta: tengwarMap['three-dots'] },
@@ -300,7 +313,9 @@ function transcribeToTengwar(text) {
 
   // Process the text word by word
   return text.replace(/\b[a-zA-Z]+\b/g, function(word) {
-    if (word.length === 0) return word;
+    if (word.length === 0) {
+      return word;
+    }
 
     const processedWord = [];
     let i = 0;
