@@ -159,8 +159,11 @@ function isSoftCUsingDict(word, index, pronunciation) {
 function isConsonantYUsingDict(word, index, pronunciation) {
     // In the CMU dictionary, a consonantal y is usually rendered as "Y"
     // while a vowel y often appears as a different vowel phoneme.
+    if (index > 0 && 'aeiou'.includes(word[index - 1])) {
+        return true;
+    }
     if (pronunciation) {
-        return !!pronunciation.includes("Y");
+        return !(!!pronunciation.includes("IY") || !!pronunciation.includes("AY"));
     }
     return isConsonantY(word, index);
 }
@@ -459,14 +462,11 @@ function isConsonantY(word, position) {
     return position === 0 || (prevChar && vowels.includes(prevChar));
 }
 
-function getYVowelType(word, position) {
-    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const nextChar = position < word.length - 1 ? word[position + 1].toLowerCase() : null;
-    if (position === word.length - 1 || (nextChar && vowels.includes(nextChar))) {
-        return 'long';
-    } else {
-        return 'short';
+function getYVowelType(word, position, pronunciation) {
+    if (pronunciation) {
+        return !!pronunciation.includes("AY") ? 'long' : 'short';
     }
+    return 'short';
 }
 
 function isNgDigraph(word, position) {
@@ -516,7 +516,7 @@ function transcribeToTengwar(text) {
     if (dictionary[lowerText]) {
         // Assume the dictionary returns an array of pronunciations;
         // choose the first one.
-        pronunciation = dictionary[lowerText][0];
+        pronunciation = dictionary[lowerText];
     }
 
     const result = [];
@@ -586,14 +586,14 @@ function transcribeToTengwar(text) {
                 if (isConsonantYUsingDict(processedText, i, pronunciation)) {
                     result.push(englishToTengwar['y'].char);
                 } else {
-                    const yType = getYVowelType(processedText, i);
+                    const yType = getYVowelType(processedText, i, pronunciation);
                     if (yType === 'long') {
                         if (vowel !== '') {
                             result.push(tengwarMap['telco']);
                             result.push(vowel);
                             vowel = '';
                         }
-                        vowel = englishToTengwar[char].tehta;
+                        vowel = tengwarMap['caron'];
                         i++;
                         continue;
                     } else {
@@ -602,7 +602,7 @@ function transcribeToTengwar(text) {
                             result.push(vowel);
                             vowel = '';
                         }
-                        vowel = englishToTengwar[char].tehta;
+                        vowel = tengwarMap['two-dots-below'];
                         i++;
                         continue;
                     }
@@ -635,7 +635,9 @@ function transcribeToTengwar(text) {
     if (hasSilentEUsingDict(processedText, pronunciation)) {
         result.push(tengwarMap['dot-below']);
     } else if (vowel !== '') {
-        result.push(tengwarMap['telco']);
+        if (vowel !== tengwarMap['two-dots-below']) { // no carrier for y
+            result.push(tengwarMap['telco']);
+        }
         result.push(vowel);
     }
 
