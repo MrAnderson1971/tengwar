@@ -648,7 +648,6 @@ function isNgDigraphImproved(word, position, pronunciation) {
     if (!alignment) {
         return isNgDigraph(word, position);
     }
-    console.log(alignment);
 
     // First, check if there's a direct 'ng' entry at this position
     for (const entry of alignment) {
@@ -770,7 +769,7 @@ function isHardRImproved(word, position, pronunciation) {
 
     // Find the entry for this position
     for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters === 'r') {
+        if (entry.startIndex === position && entry.letters.includes('r')) {
             // Check surrounding phonetic context
             // Hard R typically appears in certain positions like post-vowel pre-consonant
             const phonemeIndex = alignment.indexOf(entry);
