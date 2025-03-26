@@ -124,8 +124,8 @@ export const specialWords = {
     'of': tengwarMap['extended-umbar'],
     'and': tengwarMap['ando'] + tengwarMap['nasalizer'],
     'ofthe': tengwarMap['extended-umbar'] + tengwarMap['doubler'],
+    'tengwar': tengwarMap['tinco'] + tengwarMap['nwalme'] + tengwarMap['acute'] + tengwarMap['vala'] + tengwarMap['oore'] + tengwarMap['three-dots'],
 };
-
 
 // Special multi-phoneme patterns (handling sounds that span multiple phonemes)
 export const multiPhonemePatterns = {
