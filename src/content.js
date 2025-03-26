@@ -88,6 +88,7 @@ const englishToTengwar = {
     'nt': { char: tengwarMap['tinco'] + tengwarMap['nasalizer'] },
     'p': { char: tengwarMap['parma'] },
     'c': { char: tengwarMap['quesse'] }, // Default to hard c; disambiguation will occur below
+    'nch': {char: tengwarMap['nuumen'] + tengwarMap['calma']}, // handle this case separately
     'ch': { char: tengwarMap['calma'] },
     'k': { char: tengwarMap['quesse'] },
     'q': { char: tengwarMap['quesse'] },
@@ -1091,7 +1092,7 @@ function transcribeToTengwar(text) {
                         found = true;
                         break;
                     }
-                } else if (ngram === 'nc') {
+                } else if (ngram === 'nc' && !isSoftCImproved(processedText, i, pronunciation)) {
                     result.push(englishToTengwar['nk'].char);
                     i += 2;
                     found = true;
