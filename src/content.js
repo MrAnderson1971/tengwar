@@ -754,21 +754,95 @@ function isHardRImproved(word, position, pronunciation) {
 
 // Improved detection of silent E
 function hasSilentEImproved(word, pronunciation) {
-    if (!pronunciation) {
-        // Fall back to the original heuristic if no pronunciation available
-        return hasSilentE(word);
-    }
-
-    if (word[word.length - 1].toLowerCase() !== 'e') {
+    // Quick check - if the word doesn't end with 'e', it's not a silent e
+    if (word.length < 2 || word[word.length - 1].toLowerCase() !== 'e') {
         return false;
     }
 
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) return hasSilentE(word);
+    // If no pronunciation data, fall back to heuristic
+    if (!pronunciation) {
+        return hasSilentE(word);
+    }
 
-    // Check if the final 'e' is mapped to a null phoneme (silent)
-    const finalEntry = alignment.find(entry => entry.startIndex === word.length - 1);
-    return finalEntry && finalEntry.isSilent;
+    // Split the pronunciation into phonemes
+    const phonemes = pronunciation.split(' ');
+
+    // List of vowel phonemes in CMU dictionary
+    const vowelPhonemes = [
+        "AA", "AA0", "AA1", "AA2",
+        "AE", "AE0", "AE1", "AE2",
+        "AH", "AH0", "AH1", "AH2",
+        "AO", "AO0", "AO1", "AO2",
+        "AW", "AW0", "AW1", "AW2",
+        "AY", "AY0", "AY1", "AY2",
+        "EH", "EH0", "EH1", "EH2",
+        "ER", "ER0", "ER1", "ER2",
+        "EY", "EY0", "EY1", "EY2",
+        "IH", "IH0", "IH1", "IH2",
+        "IY", "IY0", "IY1", "IY2",
+        "OW", "OW0", "OW1", "OW2",
+        "OY", "OY0", "OY1", "OY2",
+        "UH", "UH0", "UH1", "UH2",
+        "UW", "UW0", "UW1", "UW2"
+    ];
+
+    // Check if there's a final 'e' sound in the pronunciation
+    const lastPhoneme = phonemes[phonemes.length - 1];
+    const secondLastPhoneme = phonemes.length > 1 ? phonemes[phonemes.length - 2] : null;
+
+    // A more reliable way to detect silent 'e':
+    // 1. Count the number of vowel sounds in the pronunciation
+    // 2. Count the number of vowel letters in the word
+    // 3. If there are fewer vowel sounds than vowel letters, and the word ends with 'e',
+    //    then the 'e' is likely silent
+
+    const vowelLetters = ['a', 'e', 'i', 'o', 'u', 'y'];
+    let vowelLetterCount = 0;
+    for (let i = 0; i < word.length; i++) {
+        if (vowelLetters.includes(word[i].toLowerCase())) {
+            vowelLetterCount++;
+        }
+    }
+
+    let vowelPhonemeCount = 0;
+    for (const phoneme of phonemes) {
+        // Remove stress markers for comparison
+        const basePhoneme = phoneme.replace(/[0-9]$/, '');
+        if (vowelPhonemes.includes(basePhoneme)) {
+            vowelPhonemeCount++;
+        }
+    }
+
+    // Final 'e' is likely silent if there are fewer vowel sounds than vowel letters
+    if (vowelLetterCount > vowelPhonemeCount) {
+        return true;
+    }
+
+    // For cases like "make" where the 'a' creates a diphthong with the 'e'
+    // but the 'e' itself is silent
+    const vowelsBeforeE = [];
+    for (let i = 0; i < word.length - 1; i++) {
+        if (vowelLetters.includes(word[i].toLowerCase())) {
+            vowelsBeforeE.push(word[i].toLowerCase());
+        }
+    }
+
+    // Check common silent 'e' patterns
+    if (vowelsBeforeE.length > 0) {
+        const lastVowelBeforeE = vowelsBeforeE[vowelsBeforeE.length - 1];
+        const indexOfLastVowel = word.toLowerCase().lastIndexOf(lastVowelBeforeE, word.length - 2);
+
+        // Check if there's a consonant between the last vowel and the final 'e'
+        if (indexOfLastVowel >= 0 && indexOfLastVowel < word.length - 2) {
+            // This is a classic silent 'e' pattern like "make", "site", "code"
+            return true;
+        }
+    }
+
+    // Last resort check: if the final phoneme is not a vowel sound,
+    // the final 'e' is likely silent
+    const lastPhonemeBase = lastPhoneme.replace(/[0-9]$/, '');
+    return !vowelPhonemes.includes(lastPhonemeBase);
 }
 
 // Function to get a cached or new pronunciation
@@ -850,7 +924,8 @@ function transcribeToTengwar(text) {
                 vowel = englishToTengwar[char].tehta;
                 i++;
                 continue;
-            } else if (i > 0 && processedText[i] === processedText[i - 1]) {
+            } else if (i > 0 && (processedText[i] === processedText[i - 1] ||
+                    processedText[i] === 'k' && processedText[i - 1] === 'c')) {
                 result.push(tengwarMap['doubler']);
                 i++;
             } else if (char === 'c') {
@@ -867,26 +942,23 @@ function transcribeToTengwar(text) {
                 // Use improved consonantal y detection
                 if (isConsonantYImproved(processedText, i, pronunciation)) {
                     result.push(englishToTengwar['y'].char);
+                    i++;
                 } else {
                     // Use improved vowel y type detection
                     const yType = getYVowelTypeImproved(processedText, i, pronunciation);
+                    if (vowel !== '') {
+                        result.push(tengwarMap['telco']);
+                        result.push(vowel);
+                        vowel = '';
+                    }
                     if (yType === 'long') {
-                        if (vowel !== '') {
-                            result.push(tengwarMap['telco']);
-                            result.push(vowel);
-                            vowel = '';
-                        }
                         vowel = tengwarMap['caron'];
                     } else {
-                        if (vowel !== '') {
-                            result.push(tengwarMap['telco']);
-                            result.push(vowel);
-                            vowel = '';
-                        }
                         vowel = tengwarMap['two-dots-below'];
                     }
+                    i++;
+                    continue;
                 }
-                i++;
             } else if (char === 'r') {
                 // Use improved hard r detection
                 if (isHardRImproved(processedText, i, pronunciation)) {
