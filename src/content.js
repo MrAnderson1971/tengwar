@@ -39,7 +39,7 @@ const tengwarMap = {
     'roomen': '7',      // \Troomen
     'arda': 'u',        // \Tarda
     'lambe': 'j',       // \Tlambe
-    'alda': 'k',        // \Talda
+    'alda': 'm',        // \Talda
     'silme': '8',       // \Tsilme
     'silmenuquerna': 'i', // \Tsilmenuquerna
     'esse': ';',        // \Tesse
@@ -168,7 +168,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Function to inject Tengwar font
 function injectTengwarFont() {
-    if (fontInjected) return;
+    if (fontInjected) {
+        return;
+    }
 
     const style = document.createElement('style');
     style.id = 'tengwar-font-style';
@@ -298,22 +300,11 @@ function processTextNode(textNode) {
             });
         }
 
-        // Process specific common words
-        const lowerCaseWord = match[0].toLowerCase();
-        if (specialWords[lowerCaseWord]) {
-            fragments.push({
-                text: transcribeToTengwar(match[0]),
-                isTengwar: true,
-                original: match[0]
-            });
-        } else {
-            // Add the tengwar word (regular processing)
-            fragments.push({
-                text: transcribeToTengwar(match[0]),
-                isTengwar: true,
-                original: match[0]
-            });
-        }
+        fragments.push({
+            text: transcribeToTengwar(match[0]),
+            isTengwar: true,
+            original: match[0]
+        });
 
         lastIndex = match.index + match[0].length;
     }
@@ -395,7 +386,7 @@ function isSoftC(word, position) {
 function removeSilentLetters(word) {
     // Patterns for silent letters
     const silentPatterns = [
-        { pattern: /^p(?=s|t)/i, silent: 'p' },  // silent p in psychology, pterodactyl
+        { pattern: /^p(?=[st])/i, silent: 'p' },  // silent p in psychology, pterodactyl
         { pattern: /^k(?=n)/i, silent: 'k' },    // silent k in knight, know
         { pattern: /^w(?=r)/i, silent: 'w' },    // silent w in write, wrong
     ];
@@ -459,7 +450,9 @@ function hasSilentE(word) {
 // This function aligns English spelling with CMU dictionary phonemes
 // It returns an array of {letter, phoneme} pairs for better disambiguation
 function alignLettersToPhonemes(word, pronunciation) {
-    if (!pronunciation) return null;
+    if (!pronunciation) {
+        return null;
+    }
 
     const result = [];
     let letterIndex = 0;
@@ -652,7 +645,9 @@ function isSoftCImproved(word, position, pronunciation) {
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) return isSoftC(word, position);
+    if (!alignment) {
+        return isSoftC(word, position);
+    }
 
     // Find the entry for this position
     for (const entry of alignment) {
@@ -674,7 +669,9 @@ function isConsonantYImproved(word, position, pronunciation) {
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) return isConsonantY(word, position);
+    if (!alignment) {
+        return isConsonantY(word, position);
+    }
 
     // Find the entry for this position
     for (const entry of alignment) {
@@ -696,7 +693,9 @@ function getYVowelTypeImproved(word, position, pronunciation) {
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) return getYVowelType(word, position, pronunciation);
+    if (!alignment) {
+        return getYVowelType(word, position, pronunciation);
+    }
 
     // Find the entry for this position
     for (const entry of alignment) {
@@ -730,7 +729,9 @@ function isHardRImproved(word, position, pronunciation) {
     }
 
     const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) return isHardR(word, position);
+    if (!alignment) {
+        return isHardR(word, position);
+    }
 
     // Find the entry for this position
     for (const entry of alignment) {
@@ -879,14 +880,6 @@ function isDiphthong(word, position, pronunciation) {
         return false;
     }
 
-    // Common known diphthongs in English
-    const knownDiphthongs = [
-        'ai', 'ay', 'au', 'aw',
-        'ei', 'ey', 'ea', 'eu', 'ew',
-        'oi', 'oy', 'ou', 'ow',
-        'ui', 'uy', 'ue'
-    ];
-
     const possibleDiphthong = char + nextChar;
 
     // ALWAYS exclude common patterns that are never diphthongs
@@ -983,8 +976,8 @@ function isDiphthong(word, position, pronunciation) {
     // Let's only consider known diphthongs that frequently
     // appear as true diphthongs in English
     const commonDiphthongs = [
-        'ai', 'ay', 'au', 'aw',  // as in "sail", "ray", "caught", "claw"
-        'ei', 'ey',              // as in "vein", "they"
+        'ae', 'ai', 'ay', 'au', 'aw',  // as in "sail", "ray", "caught", "claw"
+        'ea', 'ei', 'ey',              // as in "vein", "they"
         'oi', 'oy',              // as in "coin", "boy"
         'ou', 'ow'               // as in "out", "cow"
     ];
