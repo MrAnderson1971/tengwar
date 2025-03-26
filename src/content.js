@@ -77,53 +77,53 @@ const tengwarMap = {
 // English mode mapping (simplified for this extension)
 const englishToTengwar = {
     // Basic vowels
-    'a': { tehta: tengwarMap['three-dots'] },
-    'e': { tehta: tengwarMap['acute'] },
-    'i': { tehta: tengwarMap['dot'] },
-    'o': { tehta: tengwarMap['right-curl'] },
-    'u': { tehta: tengwarMap['left-curl'] },
+    'a': {tehta: tengwarMap['three-dots']},
+    'e': {tehta: tengwarMap['acute']},
+    'i': {tehta: tengwarMap['dot']},
+    'o': {tehta: tengwarMap['right-curl']},
+    'u': {tehta: tengwarMap['left-curl']},
 
     // Basic consonants
-    't': { char: tengwarMap['tinco'] },
-    'nt': { char: tengwarMap['tinco'] + tengwarMap['nasalizer'] },
-    'p': { char: tengwarMap['parma'] },
-    'c': { char: tengwarMap['quesse'] }, // Default to hard c; disambiguation will occur below
+    't': {char: tengwarMap['tinco']},
+    'nt': {char: tengwarMap['tinco'] + tengwarMap['nasalizer']},
+    'p': {char: tengwarMap['parma']},
+    'c': {char: tengwarMap['quesse']}, // Default to hard c; disambiguation will occur below
     'nch': {char: tengwarMap['nuumen'] + tengwarMap['calma']}, // handle this case separately
-    'ch': { char: tengwarMap['calma'] },
-    'k': { char: tengwarMap['quesse'] },
-    'q': { char: tengwarMap['quesse'] },
-    'qu': { char: tengwarMap['quesse'] + tengwarMap['tilde'] },
-    'd': { char: tengwarMap['ando'] },
-    'b': { char: tengwarMap['umbar'] },
-    'g': { char: tengwarMap['ungwe'] },
-    'ng': { char: tengwarMap['nwalme'] }, // Default, we'll check context
-    'th': { char: tengwarMap['thuule'] },
-    'f': { char: tengwarMap['formen'] },
-    'ph': { char: tengwarMap['formen'] },
-    'h': { char: tengwarMap['hyarmen'] },
-    'hw': { char: tengwarMap['hwesta'] },
-    'wh': { char: tengwarMap['hwesta-sindarinwa'] },
-    'nd': { char: tengwarMap['ando'] + tengwarMap['nasalizer'] },
-    'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
-    'mp': { char: tengwarMap['parma'] + tengwarMap['nasalizer'] },
-    'nk': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] },
+    'ch': {char: tengwarMap['calma']},
+    'k': {char: tengwarMap['quesse']},
+    'q': {char: tengwarMap['quesse']},
+    'qu': {char: tengwarMap['quesse'] + tengwarMap['tilde']},
+    'd': {char: tengwarMap['ando']},
+    'b': {char: tengwarMap['umbar']},
+    'g': {char: tengwarMap['ungwe']},
+    'ng': {char: tengwarMap['nwalme']}, // Default, we'll check context
+    'th': {char: tengwarMap['thuule']},
+    'f': {char: tengwarMap['formen']},
+    'ph': {char: tengwarMap['formen']},
+    'h': {char: tengwarMap['hyarmen']},
+    'hw': {char: tengwarMap['hwesta']},
+    'wh': {char: tengwarMap['hwesta-sindarinwa']},
+    'nd': {char: tengwarMap['ando'] + tengwarMap['nasalizer']},
+    'mb': {char: tengwarMap['umbar'] + tengwarMap['nasalizer']},
+    'mp': {char: tengwarMap['parma'] + tengwarMap['nasalizer']},
+    'nk': {char: tengwarMap['quesse'] + tengwarMap['nasalizer']},
     //'nc': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] }, // Same as nk
-    'nq': { char: tengwarMap['unque'] },
-    'n': { char: tengwarMap['nuumen'] },
-    'm': { char: tengwarMap['malta'] },
-    'r': { char: tengwarMap['roomen'] }, // Default to soft r; disambiguation will occur below
-    'v': { char: tengwarMap['ampa'] },
-    'w': { char: tengwarMap['vala'] },
-    'rd': { char: tengwarMap['arda'] },
-    'l': { char: tengwarMap['lambe'] },
-    'ld': { char: tengwarMap['alda'] },
-    's': { char: tengwarMap['silme'] },
-    'z': { char: tengwarMap['essenuquerna'] },
-    'sh': { char: tengwarMap['aha'] },
-    'y': { char: tengwarMap['anna'] }, // Default to consonant y; disambiguation will occur below
-    'gh': { char: tengwarMap['unque'] },
-    'x': { char: tengwarMap['quesse'] + tengwarMap['left-hook'] },
-    'j': { char: tengwarMap['anga'] },
+    'nq': {char: tengwarMap['unque']},
+    'n': {char: tengwarMap['nuumen']},
+    'm': {char: tengwarMap['malta']},
+    'r': {char: tengwarMap['roomen']}, // Default to soft r; disambiguation will occur below
+    'v': {char: tengwarMap['ampa']},
+    'w': {char: tengwarMap['vala']},
+    'rd': {char: tengwarMap['arda']},
+    'l': {char: tengwarMap['lambe']},
+    'ld': {char: tengwarMap['alda']},
+    's': {char: tengwarMap['silme']},
+    'z': {char: tengwarMap['essenuquerna']},
+    'sh': {char: tengwarMap['aha']},
+    'y': {char: tengwarMap['anna']}, // Default to consonant y; disambiguation will occur below
+    'gh': {char: tengwarMap['unque']},
+    'x': {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
+    'j': {char: tengwarMap['anga']},
 };
 
 // Special cases for common English words
@@ -136,8 +136,8 @@ const specialWords = {
 };
 
 // Check tengwar status when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function(response) {
+document.addEventListener('DOMContentLoaded', function () {
+    chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function (response) {
         if (response && response.enabled) {
             tengwarEnabled = true;
             injectTengwarFont();
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Listen for messages from popup.js
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === 'updateTengwarStatus') {
         if (request.enabled && !tengwarEnabled) {
             tengwarEnabled = true;
@@ -209,14 +209,14 @@ function processContent(container) {
         container,
         NodeFilter.SHOW_TEXT,
         {
-            acceptNode: function(node) {
+            acceptNode: function (node) {
                 if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
                     return NodeFilter.FILTER_REJECT;
                 }
                 return NodeFilter.FILTER_ACCEPT;
             }
         }
-        );
+    );
 
     let node;
     // Gather all nodes first to avoid DOM modification during traversal
@@ -277,9 +277,7 @@ function processTextNode(textNode) {
     let lastIndex = 0;
 
     // Special case for "of the" phrases before processing individual words
-    text = text.replace(/\bof\s+the\b/gi, (match) => {
-        return "ofthe";
-    });
+    text = text.replace(/\bof\s+the\b/gi, "ofthe");
 
     // Find all alphabetical words
     const wordRegex = /[a-zA-Z]+/g;
@@ -342,18 +340,19 @@ function processTextNode(textNode) {
 
 // Setup mutation observer to handle dynamic content
 let observer = null;
+
 function setupMutationObserver() {
     if (observer) {
         return;
     }
 
-    observer = new MutationObserver(function(mutations) {
+    observer = new MutationObserver(function (mutations) {
         // Process in batches to improve performance
         const nodesToProcess = new Set();
 
-        mutations.forEach(function(mutation) {
+        mutations.forEach(function (mutation) {
             if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(function(node) {
+                mutation.addedNodes.forEach(function (node) {
                     if (node.nodeType === Node.ELEMENT_NODE && !isElementToSkip(node)) {
                         nodesToProcess.add(node);
                     }
@@ -380,13 +379,13 @@ function isSoftC(word, position) {
 function removeSilentLetters(word) {
     // Patterns for silent letters
     const silentPatterns = [
-        { pattern: /^p(?=[st])/i, silent: 'p' },  // silent p in psychology, pterodactyl
-        { pattern: /^k(?=n)/i, silent: 'k' },    // silent k in knight, know
-        { pattern: /^w(?=r)/i, silent: 'w' },    // silent w in write, wrong
+        {pattern: /^p(?=[st])/i, silent: 'p'},  // silent p in psychology, pterodactyl
+        {pattern: /^k(?=n)/i, silent: 'k'},    // silent k in knight, know
+        {pattern: /^w(?=r)/i, silent: 'w'},    // silent w in write, wrong
     ];
 
     let processedWord = word;
-    for (const { pattern } of silentPatterns) {
+    for (const {pattern} of silentPatterns) {
         if (pattern.test(processedWord)) {
             processedWord = processedWord.replace(pattern, '');
         }
@@ -459,21 +458,51 @@ function alignLettersToPhonemes(word, pronunciation) {
     // Common phoneme-to-letter patterns
     const phonemeToLetterPatterns = {
         // Vowel phonemes
-        'AA0': ['a', 'o'], 'AA1': ['a', 'o'], 'AA2': ['a', 'o'],
-        'AE0': ['a'], 'AE1': ['a'], 'AE2': ['a'],
-        'AH0': ['a', 'e', 'i', 'o', 'u'], 'AH1': ['a', 'e', 'i', 'o', 'u'], 'AH2': ['a', 'e', 'i', 'o', 'u'],
-        'AO0': ['o', 'a', 'au', 'aw'], 'AO1': ['o', 'a', 'au', 'aw'], 'AO2': ['o', 'a', 'au', 'aw'],
-        'AW0': ['ou', 'ow'], 'AW1': ['ou', 'ow'], 'AW2': ['ou', 'ow'],
-        'AY0': ['i', 'y', 'ie', 'igh'], 'AY1': ['i', 'y', 'ie', 'igh'], 'AY2': ['i', 'y', 'ie', 'igh'],
-        'EH0': ['e', 'ea'], 'EH1': ['e', 'ea'], 'EH2': ['e', 'ea'],
-        'ER0': ['er', 'ir', 'ur', 'ear', 'or'], 'ER1': ['er', 'ir', 'ur', 'ear', 'or'], 'ER2': ['er', 'ir', 'ur', 'ear', 'or'],
-        'EY0': ['a', 'ai', 'ay', 'ei', 'ey'], 'EY1': ['a', 'ai', 'ay', 'ei', 'ey'], 'EY2': ['a', 'ai', 'ay', 'ei', 'ey'],
-        'IH0': ['i', 'y', 'e'], 'IH1': ['i', 'y', 'e'], 'IH2': ['i', 'y', 'e'],
-        'IY0': ['e', 'ee', 'ea', 'y', 'i'], 'IY1': ['e', 'ee', 'ea', 'y', 'i'], 'IY2': ['e', 'ee', 'ea', 'y', 'i'],
-        'OW0': ['o', 'oa', 'ow'], 'OW1': ['o', 'oa', 'ow'], 'OW2': ['o', 'oa', 'ow'],
-        'OY0': ['oi', 'oy'], 'OY1': ['oi', 'oy'], 'OY2': ['oi', 'oy'],
-        'UH0': ['u', 'oo'], 'UH1': ['u', 'oo'], 'UH2': ['u', 'oo'],
-        'UW0': ['oo', 'u', 'ew', 'ue', 'ui'], 'UW1': ['oo', 'u', 'ew', 'ue', 'ui'], 'UW2': ['oo', 'u', 'ew', 'ue', 'ui'],
+        'AA0': ['a', 'o'],
+        'AA1': ['a', 'o'],
+        'AA2': ['a', 'o'],
+        'AE0': ['a'],
+        'AE1': ['a'],
+        'AE2': ['a'],
+        'AH0': ['a', 'e', 'i', 'o', 'u'],
+        'AH1': ['a', 'e', 'i', 'o', 'u'],
+        'AH2': ['a', 'e', 'i', 'o', 'u'],
+        'AO0': ['o', 'a', 'au', 'aw'],
+        'AO1': ['o', 'a', 'au', 'aw'],
+        'AO2': ['o', 'a', 'au', 'aw'],
+        'AW0': ['ou', 'ow'],
+        'AW1': ['ou', 'ow'],
+        'AW2': ['ou', 'ow'],
+        'AY0': ['i', 'y', 'ie', 'igh'],
+        'AY1': ['i', 'y', 'ie', 'igh'],
+        'AY2': ['i', 'y', 'ie', 'igh'],
+        'EH0': ['e', 'ea'],
+        'EH1': ['e', 'ea'],
+        'EH2': ['e', 'ea'],
+        'ER0': ['er', 'ir', 'ur', 'ear', 'or'],
+        'ER1': ['er', 'ir', 'ur', 'ear', 'or'],
+        'ER2': ['er', 'ir', 'ur', 'ear', 'or'],
+        'EY0': ['a', 'ai', 'ay', 'ei', 'ey'],
+        'EY1': ['a', 'ai', 'ay', 'ei', 'ey'],
+        'EY2': ['a', 'ai', 'ay', 'ei', 'ey'],
+        'IH0': ['i', 'y', 'e'],
+        'IH1': ['i', 'y', 'e'],
+        'IH2': ['i', 'y', 'e'],
+        'IY0': ['e', 'ee', 'ea', 'y', 'i'],
+        'IY1': ['e', 'ee', 'ea', 'y', 'i'],
+        'IY2': ['e', 'ee', 'ea', 'y', 'i'],
+        'OW0': ['o', 'oa', 'ow'],
+        'OW1': ['o', 'oa', 'ow'],
+        'OW2': ['o', 'oa', 'ow'],
+        'OY0': ['oi', 'oy'],
+        'OY1': ['oi', 'oy'],
+        'OY2': ['oi', 'oy'],
+        'UH0': ['u', 'oo'],
+        'UH1': ['u', 'oo'],
+        'UH2': ['u', 'oo'],
+        'UW0': ['oo', 'u', 'ew', 'ue', 'ui'],
+        'UW1': ['oo', 'u', 'ew', 'ue', 'ui'],
+        'UW2': ['oo', 'u', 'ew', 'ue', 'ui'],
 
         // Consonant phonemes
         'B': ['b'],
@@ -638,14 +667,9 @@ function alignLettersToPhonemes(word, pronunciation) {
 }
 
 // Improved disambiguation for NG digraph
-function isNgDigraphImproved(word, position, pronunciation) {
-    if (!pronunciation) {
+function isNgDigraphImproved(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
         // Fall back to the original heuristic if no pronunciation available
-        return isNgDigraph(word, position);
-    }
-
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) {
         return isNgDigraph(word, position);
     }
 
@@ -661,7 +685,7 @@ function isNgDigraphImproved(word, position, pronunciation) {
     // followed by a 'g' at the next position - this means it's NOT a digraph
     for (let i = 0; i < alignment.length - 1; i++) {
         if (alignment[i].startIndex === position && alignment[i].letters === 'n' &&
-            alignment[i+1].startIndex === position + 1 && alignment[i+1].letters === 'g') {
+            alignment[i + 1].startIndex === position + 1 && alignment[i + 1].letters === 'g') {
             // We found separate 'n' and 'g' entries, so it's not a digraph
             return false;
         }
@@ -672,14 +696,9 @@ function isNgDigraphImproved(word, position, pronunciation) {
 }
 
 // Improved disambiguation for soft/hard C
-function isSoftCImproved(word, position, pronunciation) {
-    if (!pronunciation) {
+function isSoftCImproved(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
         // Fall back to the original heuristic if no pronunciation available
-        return isSoftC(word, position);
-    }
-
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) {
         return isSoftC(word, position);
     }
 
@@ -696,14 +715,9 @@ function isSoftCImproved(word, position, pronunciation) {
 }
 
 // Improved disambiguation for consonant Y
-function isConsonantYImproved(word, position, pronunciation) {
-    if (!pronunciation) {
+function isConsonantYImproved(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
         // Fall back to the original heuristic if no pronunciation available
-        return isConsonantY(word, position);
-    }
-
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) {
         return isConsonantY(word, position);
     }
 
@@ -720,14 +734,9 @@ function isConsonantYImproved(word, position, pronunciation) {
 }
 
 // Improved detection of y vowel type (long vs short)
-function getYVowelTypeImproved(word, position, pronunciation) {
-    if (!pronunciation) {
+function getYVowelTypeImproved(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
         // Fall back to the original implementation
-        return getYVowelType(word, position, pronunciation);
-    }
-
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) {
         return getYVowelType(word, position, pronunciation);
     }
 
@@ -756,14 +765,9 @@ function getYVowelTypeImproved(word, position, pronunciation) {
 }
 
 // Improved disambiguation for hard R
-function isHardRImproved(word, position, pronunciation) {
-    if (!pronunciation) {
+function isHardRImproved(word, position, pronunciation, alignment) {
+    if (!pronunciation || !alignment) {
         // Fall back to the original heuristic if no pronunciation available
-        return isHardR(word, position);
-    }
-
-    const alignment = alignLettersToPhonemes(word, pronunciation);
-    if (!alignment) {
         return isHardR(word, position);
     }
 
@@ -898,7 +902,7 @@ function getPronunciation(word) {
 }
 
 // Function to detect if vowels are in the same syllable using pronunciation data
-function isDiphthong(word, position, pronunciation) {
+function isDiphthong(word, position, pronunciation, alignment) {
     // If not enough characters for a diphthong
     if (position >= word.length - 1) {
         return false;
@@ -937,7 +941,7 @@ function isDiphthong(word, position, pronunciation) {
     // 2. Pattern for ia/io/iu where typically i forms its own syllable
     // e.g., "di-a-" in "diagram", "biography", "di-o-" in "dioxide"
     if ((possibleDiphthong === 'ia' || possibleDiphthong === 'io' || possibleDiphthong === 'iu') &&
-        position > 0 && !vowels.includes(word[position-1])) {
+        position > 0 && !vowels.includes(word[position - 1])) {
         // The pattern consonant+i+a/o/u is usually separate syllables
         return false;
     }
@@ -952,53 +956,50 @@ function isDiphthong(word, position, pronunciation) {
     }
 
     // Use pronunciation data if available
-    if (pronunciation) {
+    if (pronunciation && alignment) {
         // We need a proper mapping to determine which letter corresponds to which phoneme
-        const alignment = alignLettersToPhonemes(word, pronunciation);
-        if (alignment) {
-            // Check if the two vowels map to a single phoneme (true diphthong)
-            // or map to separate phonemes (separate syllables)
-            let foundFirstVowel = false;
-            let firstVowelPhoneme = null;
-            let secondVowelPhoneme = null;
+        // Check if the two vowels map to a single phoneme (true diphthong)
+        // or map to separate phonemes (separate syllables)
+        let foundFirstVowel = false;
+        let firstVowelPhoneme = null;
+        let secondVowelPhoneme = null;
 
-            for (const entry of alignment) {
-                if (entry.startIndex === position) {
-                    foundFirstVowel = true;
-                    firstVowelPhoneme = entry.phoneme;
-                } else if (entry.startIndex === position + 1 && foundFirstVowel) {
-                    secondVowelPhoneme = entry.phoneme;
-                    break;
+        for (const entry of alignment) {
+            if (entry.startIndex === position) {
+                foundFirstVowel = true;
+                firstVowelPhoneme = entry.phoneme;
+            } else if (entry.startIndex === position + 1 && foundFirstVowel) {
+                secondVowelPhoneme = entry.phoneme;
+                break;
+            }
+        }
+
+        // If both vowels map to the same phoneme, they're likely a diphthong
+        if (firstVowelPhoneme && !secondVowelPhoneme) {
+            // Check if the phoneme is a known diphthong phoneme
+            const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW", "UW"];
+            for (const dp of diphthongPhonemes) {
+                if (firstVowelPhoneme.startsWith(dp)) {
+                    return true;
                 }
             }
+        }
 
-            // If both vowels map to the same phoneme, they're likely a diphthong
-            if (firstVowelPhoneme && !secondVowelPhoneme) {
-                // Check if the phoneme is a known diphthong phoneme
-                const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW", "UW"];
-                for (const dp of diphthongPhonemes) {
-                    if (firstVowelPhoneme.startsWith(dp)) {
-                        return true;
-                    }
-                }
+        // If both vowels have their own phonemes with different stress markers,
+        // they're in different syllables
+        if (firstVowelPhoneme && secondVowelPhoneme) {
+            // Extract stress markers (0, 1, 2)
+            const firstStress = firstVowelPhoneme.match(/[0-9]$/);
+            const secondStress = secondVowelPhoneme.match(/[0-9]$/);
+
+            // If both vowels have stress markers and they're different,
+            // we know they're in separate syllables
+            if (firstStress && secondStress && firstStress[0] !== secondStress[0]) {
+                return false;
             }
 
-            // If both vowels have their own phonemes with different stress markers,
-            // they're in different syllables
-            if (firstVowelPhoneme && secondVowelPhoneme) {
-                // Extract stress markers (0, 1, 2)
-                const firstStress = firstVowelPhoneme.match(/[0-9]$/);
-                const secondStress = secondVowelPhoneme.match(/[0-9]$/);
-
-                // If both vowels have stress markers and they're different,
-                // we know they're in separate syllables
-                if (firstStress && secondStress && firstStress[0] !== secondStress[0]) {
-                    return false;
-                }
-
-                // If they have the same stress or one is unstressed,
-                // it's harder to determine
-            }
+            // If they have the same stress or one is unstressed,
+            // it's harder to determine
         }
     }
 
@@ -1027,7 +1028,7 @@ function getDiphthongType(word, position) {
 // xi = treat i as consonant y
 // xu = treat u as consonant w
 // xo = use telco with first vowel diacritic + right-curl for 'o'
-function handleDiphthong(word, position, result, vowel) {
+function handleDiphthong(word, position, result) {
     const char = word[position].toLowerCase();
     const diphthongType = getDiphthongType(word, position);
 
@@ -1083,7 +1084,8 @@ function transcribeToTengwar(text) {
     const processedText = removeSilentLetters(text);
 
     // Get pronunciation
-    const pronunciation = getPronunciation(lowerText);
+    const pronunciation = getPronunciation(processedText);
+    const alignment = alignLettersToPhonemes(processedText, pronunciation);
 
     const result = [];
     let i = 0;
@@ -1095,7 +1097,7 @@ function transcribeToTengwar(text) {
 
         // Check for diphthongs
         if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation)) {
-            const charsToSkip = handleDiphthong(processedText, i, result, vowel);
+            const charsToSkip = handleDiphthong(processedText, i, result);
             if (charsToSkip > 0) {
                 i += charsToSkip;
                 vowel = ''; // Reset vowel since we've handled it
@@ -1110,7 +1112,7 @@ function transcribeToTengwar(text) {
                 const ngram = processedText.substring(i, i + len).toLowerCase();
 
                 if (ngram === 'ng') {
-                    if (isNgDigraphImproved(processedText, i, pronunciation)) {
+                    if (isNgDigraphImproved(processedText, i, pronunciation, alignment)) {
                         result.push(englishToTengwar['ng'].char);
                         i += 2;
                         found = true;
@@ -1121,7 +1123,7 @@ function transcribeToTengwar(text) {
                         found = true;
                         break;
                     }
-                } else if (ngram === 'nc' && !isSoftCImproved(processedText, i + 1, pronunciation)) {
+                } else if (ngram === 'nc' && !isSoftCImproved(processedText, i + 1, pronunciation, alignment)) {
                     result.push(englishToTengwar['nk'].char);
                     i += 2;
                     found = true;
@@ -1146,12 +1148,12 @@ function transcribeToTengwar(text) {
                 i++;
                 continue;
             } else if (i > 0 && (processedText[i] === processedText[i - 1] ||
-                    processedText[i] === 'k' && processedText[i - 1] === 'c')) {
+                processedText[i] === 'k' && processedText[i - 1] === 'c')) {
                 result.push(tengwarMap['doubler']);
                 i++;
             } else if (char === 'c') {
                 // Use improved soft c detection
-                if (isSoftCImproved(processedText, i, pronunciation)) {
+                if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
                     // Soft c: use silmenuquerna
                     result.push(tengwarMap['silmenuquerna']);
                 } else {
@@ -1166,7 +1168,7 @@ function transcribeToTengwar(text) {
                     i++;
                 } else {
                     // Use improved vowel y type detection
-                    const yType = getYVowelTypeImproved(processedText, i, pronunciation);
+                    const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
                     if (vowel !== '') {
                         result.push(tengwarMap['telco']);
                         result.push(vowel);
@@ -1182,7 +1184,7 @@ function transcribeToTengwar(text) {
                 }
             } else if (char === 'r') {
                 // Use improved hard r detection
-                if (isHardRImproved(processedText, i, pronunciation)) {
+                if (isHardRImproved(processedText, i, pronunciation, alignment)) {
                     result.push(tengwarMap['oore']);
                 } else {
                     result.push(englishToTengwar['r'].char);
@@ -1220,11 +1222,11 @@ function transcribeToTengwar(text) {
 }
 
 // Check initial Tengwar status when extension loads
-chrome.storage.sync.get('tengwarEnabled', function(data) {
+chrome.storage.sync.get('tengwarEnabled', function (data) {
     if (data.tengwarEnabled) {
         tengwarEnabled = true;
         // Wait a bit to ensure the page is loaded
-        setTimeout(function() {
+        setTimeout(function () {
             injectTengwarFont();
             processPage();
         }, 1000); // Increased delay for better page load
