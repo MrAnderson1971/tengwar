@@ -2,253 +2,6 @@
 let tengwarEnabled = false;
 let fontInjected = false;
 
-// Check tengwar status when page loads
-document.addEventListener('DOMContentLoaded', function() {
-  chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function(response) {
-    if (response && response.enabled) {
-      tengwarEnabled = true;
-      injectTengwarFont();
-      processPage();
-    }
-  });
-});
-
-// Listen for messages from popup.js
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  if (request.action === 'updateTengwarStatus') {
-    if (request.enabled && !tengwarEnabled) {
-      tengwarEnabled = true;
-      injectTengwarFont();
-      processPage();
-    } else if (!request.enabled && tengwarEnabled) {
-      // Reload the page to restore original text
-      window.location.reload();
-    }
-  }
-});
-
-// Function to inject Tengwar font
-function injectTengwarFont() {
-  if (fontInjected) return;
-
-  const style = document.createElement('style');
-  style.id = 'tengwar-font-style';
-  style.textContent = `
-    @font-face {
-      font-family: 'TengwarAnnatar';
-      src: url('${chrome.runtime.getURL('annatar.ttf')}') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-    
-    .tengwar-text {
-      font-family: 'TengwarAnnatar', serif !important;
-    }
-  `;
-  document.head.appendChild(style);
-  fontInjected = true;
-}
-
-// Main function to process the page
-function processPage() {
-  if (!tengwarEnabled) return;
-
-  // Process initial content
-  processContent(document.body);
-
-  // Set up a MutationObserver to handle dynamic content
-  setupMutationObserver();
-}
-
-// Process content within a container element
-function processContent(container) {
-  if (!container || isElementToSkip(container)) return;
-
-  // Get all text nodes within the container
-  const textNodes = [];
-  const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: function(node) {
-          if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          return NodeFilter.FILTER_ACCEPT;
-        }
-      },
-      false
-  );
-
-  let node;
-  // Gather all nodes first to avoid DOM modification during traversal
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
-
-  // Process each node
-  textNodes.forEach(processTextNode);
-}
-
-// Function to determine if an element should be skipped
-function isElementToSkip(element) {
-  if (!element) return true;
-
-  // Skip if already processed or in skip list
-  if (element.classList && (
-      element.classList.contains('tengwar-text') ||
-      element.classList.contains('tengwar-skip'))) {
-    return true;
-  }
-
-  // Skip if parent already processed
-  if (element.parentElement && element.parentElement.classList &&
-      element.parentElement.classList.contains('tengwar-text')) {
-    return true;
-  }
-
-  // Skip certain tag types
-  const skipTags = ['script', 'style', 'noscript', 'iframe', 'canvas', 'svg',
-    'math', 'code', 'pre', 'textarea', 'input', 'select', 'option'];
-  if (element.tagName && skipTags.includes(element.tagName.toLowerCase())) {
-    return true;
-  }
-
-  // Skip editable content
-  if (element.isContentEditable || element.contentEditable === 'true') {
-    return true;
-  }
-
-  return false;
-}
-
-// Process a text node
-function processTextNode(textNode) {
-  if (!textNode || !textNode.nodeValue || !textNode.parentNode) return;
-
-  const text = textNode.nodeValue;
-  const parent = textNode.parentNode;
-
-  // If the parent is already a tengwar-text or has tengwar-text class, skip
-  if (parent.classList && parent.classList.contains('tengwar-text')) return;
-
-  // Use regular expression to find all words (sequences of letters)
-  const fragments = [];
-  let lastIndex = 0;
-
-  // Special case for "of the" phrases before processing individual words
-  let processedText = text.replace(/\bof the\b/gi, (match) => {
-    const placeholder = "§§OFTHE§§"; // Unique placeholder
-    fragments.push({
-      text: "W;", // extended umbar doubled
-      isTengwar: true,
-      original: match
-    });
-    return placeholder;
-  });
-
-  // Find all alphabetical words
-  const wordRegex = /[a-zA-Z]+/g;
-  let match;
-
-  while ((match = wordRegex.exec(text)) !== null) {
-    // Skip "of the" placeholders we've already processed
-    if (match[0] === "OFTHE") continue;
-
-    // Add text before the current word
-    if (match.index > lastIndex) {
-      fragments.push({
-        text: text.substring(lastIndex, match.index),
-        isTengwar: false
-      });
-    }
-
-    // Process specific common words
-    const lowerCaseWord = match[0].toLowerCase();
-    if (lowerCaseWord === "a" || lowerCaseWord === "the" ||
-        lowerCaseWord === "of" || lowerCaseWord === "and") {
-      fragments.push({
-        text: transcribeToTengwar(match[0]),
-        isTengwar: true,
-        original: match[0]
-      });
-    } else {
-      // Add the tengwar word (regular processing)
-      fragments.push({
-        text: transcribeToTengwar(match[0]),
-        isTengwar: true,
-        original: match[0]
-      });
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add any remaining text
-  if (lastIndex < text.length) {
-    fragments.push({
-      text: text.substring(lastIndex),
-      isTengwar: false
-    });
-  }
-
-  // If we have fragments to process
-  if (fragments.length > 0) {
-    // Create fragment to hold the new content
-    const documentFragment = document.createDocumentFragment();
-
-    // Add each fragment
-    fragments.forEach(fragment => {
-      if (fragment.isTengwar) {
-        // Create a span for tengwar text
-        const span = document.createElement('span');
-        span.className = 'tengwar-text';
-        span.textContent = fragment.text;
-        span.setAttribute('data-original', fragment.original); // Store original for possible later use
-        documentFragment.appendChild(span);
-      } else {
-        // Regular text nodes for non-tengwar text
-        documentFragment.appendChild(document.createTextNode(fragment.text));
-      }
-    });
-
-    // Replace the original node with our fragment
-    try {
-      parent.replaceChild(documentFragment, textNode);
-    } catch (e) {
-      console.error("Error replacing node:", e);
-    }
-  }
-}
-
-// Setup mutation observer to handle dynamic content
-let observer = null;
-function setupMutationObserver() {
-  if (observer) return;
-
-  observer = new MutationObserver(function(mutations) {
-    // Process in batches to improve performance
-    const nodesToProcess = new Set();
-
-    mutations.forEach(function(mutation) {
-      if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach(function(node) {
-          if (node.nodeType === Node.ELEMENT_NODE && !isElementToSkip(node)) {
-            nodesToProcess.add(node);
-          }
-        });
-      }
-    });
-
-    // Process nodes in one batch
-    nodesToProcess.forEach(processContent);
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-}
 
 // Mapping based on the actual characters from the compiled LaTeX document
 // This maps LaTeX commands to their corresponding characters in the Annatar font
@@ -372,6 +125,252 @@ const englishToTengwar = {
   'initial-o': { char: tengwarMap['telco'], tehta: tengwarMap['right-curl'] },
   'initial-u': { char: tengwarMap['telco'], tehta: tengwarMap['left-curl'] },
 };
+
+// Check tengwar status when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function(response) {
+    if (response && response.enabled) {
+      tengwarEnabled = true;
+      injectTengwarFont();
+      processPage();
+    }
+  });
+});
+
+// Listen for messages from popup.js
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  if (request.action === 'updateTengwarStatus') {
+    if (request.enabled && !tengwarEnabled) {
+      tengwarEnabled = true;
+      injectTengwarFont();
+      processPage();
+    } else if (!request.enabled && tengwarEnabled) {
+      // Reload the page to restore original text
+      window.location.reload();
+    }
+  }
+});
+
+// Function to inject Tengwar font
+function injectTengwarFont() {
+  if (fontInjected) return;
+
+  const style = document.createElement('style');
+  style.id = 'tengwar-font-style';
+  style.textContent = `
+    @font-face {
+      font-family: 'TengwarAnnatar';
+      src: url('${chrome.runtime.getURL('annatar.ttf')}') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    .tengwar-text {
+      font-family: 'TengwarAnnatar', serif !important;
+    }
+  `;
+  document.head.appendChild(style);
+  fontInjected = true;
+}
+
+// Main function to process the page
+function processPage() {
+  if (!tengwarEnabled) return;
+
+  // Process initial content
+  processContent(document.body);
+
+  // Set up a MutationObserver to handle dynamic content
+  setupMutationObserver();
+}
+
+// Process content within a container element
+function processContent(container) {
+  if (!container || isElementToSkip(container)) return;
+
+  // Get all text nodes within the container
+  const textNodes = [];
+  const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function(node) {
+          if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      },
+      false
+  );
+
+  let node;
+  // Gather all nodes first to avoid DOM modification during traversal
+  while ((node = walker.nextNode())) {
+    textNodes.push(node);
+  }
+
+  // Process each node
+  textNodes.forEach(processTextNode);
+}
+
+// Function to determine if an element should be skipped
+function isElementToSkip(element) {
+  if (!element) return true;
+
+  // Skip if already processed or in skip list
+  if (element.classList && (
+      element.classList.contains('tengwar-text') ||
+      element.classList.contains('tengwar-skip'))) {
+    return true;
+  }
+
+  // Skip if parent already processed
+  if (element.parentElement && element.parentElement.classList &&
+      element.parentElement.classList.contains('tengwar-text')) {
+    return true;
+  }
+
+  // Skip certain tag types
+  const skipTags = ['script', 'style', 'noscript', 'iframe', 'canvas', 'svg',
+    'math', 'code', 'pre', 'textarea', 'input', 'select', 'option'];
+  if (element.tagName && skipTags.includes(element.tagName.toLowerCase())) {
+    return true;
+  }
+
+  // Skip editable content
+  if (element.isContentEditable || element.contentEditable === 'true') {
+    return true;
+  }
+
+  return false;
+}
+
+// Process a text node
+function processTextNode(textNode) {
+  if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
+    return;
+  }
+
+  let text = textNode.nodeValue;
+  const parent = textNode.parentNode;
+
+  // If the parent is already a tengwar-text or has tengwar-text class, skip
+  if (parent.classList && parent.classList.contains('tengwar-text')) return;
+
+  // Use regular expression to find all words (sequences of letters)
+  const fragments = [];
+  let lastIndex = 0;
+
+  // Special case for "of the" phrases before processing individual words
+  text = text.replace(/\bof\s+the\b/gi, (match) => {
+    fragments.push({
+      text: tengwarMap["extended-umbar"] + tengwarMap["doubler"], // extended umbar doubled
+      isTengwar: true,
+      original: match
+    });
+    return "";
+  });
+
+  // Find all alphabetical words
+  const wordRegex = /[a-zA-Z]+/g;
+  let match;
+
+  while ((match = wordRegex.exec(text)) !== null) {
+    // Add text before the current word
+    if (match.index > lastIndex) {
+      fragments.push({
+        text: text.substring(lastIndex, match.index),
+        isTengwar: false
+      });
+    }
+
+    // Process specific common words
+    const lowerCaseWord = match[0].toLowerCase();
+    if (lowerCaseWord === "a" || lowerCaseWord === "the" ||
+        lowerCaseWord === "of" || lowerCaseWord === "and") {
+      fragments.push({
+        text: transcribeToTengwar(match[0]),
+        isTengwar: true,
+        original: match[0]
+      });
+    } else {
+      // Add the tengwar word (regular processing)
+      fragments.push({
+        text: transcribeToTengwar(match[0]),
+        isTengwar: true,
+        original: match[0]
+      });
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add any remaining text
+  if (lastIndex < text.length) {
+    fragments.push({
+      text: text.substring(lastIndex),
+      isTengwar: false
+    });
+  }
+
+  // If we have fragments to process
+  if (fragments.length > 0) {
+    // Create fragment to hold the new content
+    const documentFragment = document.createDocumentFragment();
+
+    // Add each fragment
+    fragments.forEach(fragment => {
+      if (fragment.isTengwar) {
+        // Create a span for tengwar text
+        const span = document.createElement('span');
+        span.className = 'tengwar-text';
+        span.textContent = fragment.text;
+        span.setAttribute('data-original', fragment.original); // Store original for possible later use
+        documentFragment.appendChild(span);
+      } else {
+        // Regular text nodes for non-tengwar text
+        documentFragment.appendChild(document.createTextNode(fragment.text));
+      }
+    });
+
+    // Replace the original node with our fragment
+    try {
+      parent.replaceChild(documentFragment, textNode);
+    } catch (e) {
+      console.error("Error replacing node:", e);
+    }
+  }
+}
+
+// Setup mutation observer to handle dynamic content
+let observer = null;
+function setupMutationObserver() {
+  if (observer) return;
+
+  observer = new MutationObserver(function(mutations) {
+    // Process in batches to improve performance
+    const nodesToProcess = new Set();
+
+    mutations.forEach(function(mutation) {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach(function(node) {
+          if (node.nodeType === Node.ELEMENT_NODE && !isElementToSkip(node)) {
+            nodesToProcess.add(node);
+          }
+        });
+      }
+    });
+
+    // Process nodes in one batch
+    nodesToProcess.forEach(processContent);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
 
 // Function to transcribe text to Tengwar
 function transcribeToTengwar(text) {
