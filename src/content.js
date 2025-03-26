@@ -101,7 +101,7 @@ const englishToTengwar = {
     'ph': { char: tengwarMap['formen'] },
     'h': { char: tengwarMap['hyarmen'] },
     'hw': { char: tengwarMap['hwesta'] },
-    'wh': { char: tengwarMap['hwesta'] },
+    'wh': { char: tengwarMap['hwesta-sindarinwa'] },
     'nd': { char: tengwarMap['ando'] + tengwarMap['nasalizer'] },
     'mb': { char: tengwarMap['umbar'] + tengwarMap['nasalizer'] },
     'mp': { char: tengwarMap['parma'] + tengwarMap['nasalizer'] },
