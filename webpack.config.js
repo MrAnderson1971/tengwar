@@ -32,6 +32,7 @@ module.exports = {
                 { from: 'src/manifest.json', to: 'manifest.json' },
                 { from: 'src/popup.html', to: 'popup.html' },
                 { from: 'src/annatar.ttf', to: 'annatar.ttf' },
+                { from: 'src/parmaite.ttf', to: 'parmaite.ttf' },
                 { from: 'src/icons', to: 'icons' }
             ],
         }),

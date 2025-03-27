@@ -1,40 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tengwar Transcriber</title>
-  <style>
-    @font-face {
-      font-family: 'TengwarAnnatar';
-      src: url("annatar.ttf") format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-    body {
-      width: 200px;
-      font-family: TengwarAnnatar, serif;
-      padding: 10px;
-    }
-    h3 {
-      margin-top: 0;
-      color: #333;
-    }
-    label {
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    input[type="checkbox"] {
-      margin-right: 8px;
-    }
-  </style>
+    <title>Tengwar Transcriber</title>
+    <style>
+        @font-face {
+            font-family: 'TengwarAnnatar';
+            src: url("annatar.ttf") format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            width: 200px;
+            font-family: Arial, sans-serif;
+            padding: 10px;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .tengwar-text {
+            font-family: 'TengwarAnnatar', serif;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        select {
+            margin-top: 10px;
+            width: 100%;
+            padding: 5px;
+        }
+    </style>
 </head>
 <body>
-<h3>1bRy6E 175E8z7wT6R</h3> <!-- Tengwar Transcriber -->
+<h3><span class="tengwar-text">1bRy6E 175E8z7wT6R</span></h3> <!-- Tengwar Transcriber -->
 <label>
-  <input type="checkbox" id="tengwarEnabled">
-  5RwEjÉ <!-- Enable -->
+    <input type="checkbox" id="tengwarEnabled">
+    <span class="tengwar-text">5RwEjÉ</span> <!-- Enable -->
 </label>
+<div style="margin-top: 15px;">
+    <label for="tengwarFont" style="display: block;">
+        <span class="tengwar-text">e1Yp</span> <!-- Font -->
+    </label>
+    <select id="tengwarFont" name="tengwarFont">
+        <option value="annatar">Annatar</option>
+        <option value="parmaite">Parmaite</option>
+    </select>
+</div>
+
 <script src="popup.js"></script>
 </body>
 </html>

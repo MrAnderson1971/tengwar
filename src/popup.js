@@ -1,21 +1,40 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const checkbox = document.getElementById('tengwarEnabled');
+    const fontSelect = document.getElementById('tengwarFont');
 
-    // Load saved state
-    chrome.storage.sync.get('tengwarEnabled', function(data) {
+    chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
         checkbox.checked = data.tengwarEnabled || false;
+        fontSelect.value = data.tengwarFont;
     });
 
-    // Save state when checkbox changes
-    checkbox.addEventListener('change', function() {
+    // Toggle Tengwar conversion on checkbox change
+    checkbox.addEventListener('change', function () {
         chrome.storage.sync.set({tengwarEnabled: checkbox.checked});
 
         // Send message to active tab to update transcription status
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
             if (tabs[0]) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     action: 'updateTengwarStatus',
                     enabled: checkbox.checked
+                });
+            }
+        });
+    });
+
+    // Handle font selection change
+    fontSelect.addEventListener('change', function () {
+        const selectedFont = fontSelect.value;
+
+        // Save the selected font
+        chrome.storage.sync.set({tengwarFont: selectedFont});
+
+        // Send message to active tab to update font
+        chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
+            if (tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'updateTengwarFont',
+                    font: selectedFont
                 });
             }
         });

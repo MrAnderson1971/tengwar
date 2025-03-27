@@ -11,11 +11,11 @@ let fontInjected = false;
 const pronunciationCache = new Map();
 
 // Check tengwar status when page loads
-document.addEventListener('DOMContentLoaded', function () {
-    chrome.runtime.sendMessage({action: 'getTengwarStatus'}, function (response) {
-        if (response && response.enabled) {
+document.addEventListener('DOMContentLoaded', () => {
+    chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], (data) => {
+        if (data.tengwarEnabled) {
             tengwarEnabled = true;
-            injectTengwarFont();
+            injectTengwarFont(data.tengwarFont || 'annatar');
             processPage();
         }
     });
@@ -35,9 +35,58 @@ chrome.runtime.onMessage.addListener(function (request) {
     }
 });
 
-// Function to inject Tengwar font
-function injectTengwarFont() {
+chrome.runtime.onMessage.addListener(function (request) {
+    if (request.action === 'updateTengwarFont') {
+        updateTengwarFont(request.font);
+    }
+});
+
+function updateTengwarFont(fontName) {
+    // Make sure font is valid
+    if (!fontName || (fontName !== 'annatar' && fontName !== 'parmaite')) {
+        fontName = 'annatar'; // Default to Annatar if invalid
+    }
+
+    const styleEl = document.getElementById('tengwar-font-style');
+
+    if (styleEl) {
+        // Update the existing style element
+        styleEl.textContent = `
+    @font-face {
+      font-family: 'TengwarFont';
+      src: url('${chrome.runtime.getURL(fontName + '.ttf')}') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    .tengwar-text {
+      font-family: 'TengwarFont', serif !important;
+    }
+  `;
+    } else {
+        // If style doesn't exist yet, call injectTengwarFont() which will
+        // now use the current font setting
+        injectTengwarFont(fontName);
+    }
+
+    // If Tengwar is enabled, re-process the page with the new font
+    if (tengwarEnabled) {
+        processPage();
+    }
+}
+
+// Modify your existing injectTengwarFont function to accept a font parameter
+function injectTengwarFont(fontName) {
     if (fontInjected) {
+        return;
+    }
+
+    // If no font name is provided, get it from storage
+    if (!fontName) {
+        chrome.storage.sync.get('tengwarFont', function (data) {
+            const font = data.tengwarFont || 'annatar';
+            injectTengwarFont(font);
+        });
         return;
     }
 
@@ -45,14 +94,14 @@ function injectTengwarFont() {
     style.id = 'tengwar-font-style';
     style.textContent = `
     @font-face {
-      font-family: 'TengwarAnnatar';
-      src: url('${chrome.runtime.getURL('annatar.ttf')}') format('truetype');
+      font-family: 'TengwarFont';
+      src: url('${chrome.runtime.getURL(fontName + '.ttf')}') format('truetype');
       font-weight: normal;
       font-style: normal;
     }
     
     .tengwar-text {
-      font-family: 'TengwarAnnatar', serif !important;
+      font-family: 'TengwarFont', serif !important;
     }
   `;
     document.head.appendChild(style);
@@ -922,13 +971,10 @@ function transcribeToTengwar(text) {
 }
 
 // Check initial Tengwar status when extension loads
-chrome.storage.sync.get('tengwarEnabled', function (data) {
+chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
     if (data.tengwarEnabled) {
         tengwarEnabled = true;
-        // Wait a bit to ensure the page is loaded
-        setTimeout(function () {
-            injectTengwarFont();
-            processPage();
-        }, 1000); // Increased delay for better page load
+        injectTengwarFont(data.tengwarFont || 'annatar');
+        processPage();
     }
 });
