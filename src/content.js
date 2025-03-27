@@ -7,9 +7,6 @@ import {alignLettersToPhonemes} from "./align";
 let tengwarEnabled = false;
 let fontInjected = false;
 
-// Cache for pronunciations to improve performance
-const pronunciationCache = new Map();
-
 // Check tengwar status when page loads
 document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], (data) => {
@@ -679,27 +676,20 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
     // Fallback to known common diphthong letter pairs (O(1))
     const commonDiphthongs = [
         'ae', 'ai', 'ay', 'au', 'aw',
-        'ea', 'ei', 'ey',
+        'ea', 'ee', 'ei', 'ey',
         'oi', 'oy',
         'ou', 'ow',
-        'ue' // Added ue
+        'ue'
     ];
     return commonDiphthongs.includes(possibleDiphthong);
 }
 
 // Function to get a cached or new pronunciation
 function getPronunciation(word) {
-    // Check cache first
-    if (pronunciationCache.has(word)) {
-        return pronunciationCache.get(word);
-    }
-
     // Get from dictionary
     let pronunciation = null;
     if (dictionary[word.toLowerCase()]) {
         pronunciation = dictionary[word.toLowerCase()];
-        // Cache the result
-        pronunciationCache.set(word, pronunciation);
     }
 
     return pronunciation;
@@ -764,8 +754,13 @@ function handleDiphthong(word, position, result) {
 
 const vowelDiacritics = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarMap['dot'], tengwarMap['right-curl'], tengwarMap['right-curl']];
 
+const cache = new Map();
+
 // Update the transcribeToTengwar function by modifying the handling of 'e'
 function transcribeToTengwar(text) {
+    if (cache.has(text)) {
+        return cache.get(text);
+    }
     const lowerText = text.toLowerCase();
     if (specialWords[lowerText]) {
         return specialWords[lowerText];
@@ -967,7 +962,9 @@ function transcribeToTengwar(text) {
         result.push(vowelOnTop);
     }
 
-    return result.join('');
+    const output = result.join('');
+    cache.set(text, output);
+    return output;
 }
 
 // Check initial Tengwar status when extension loads
