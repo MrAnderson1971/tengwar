@@ -447,7 +447,7 @@ function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // M
     // Check the alignment entry for this position
     if (alignmentEntry.letters.includes('c') || alignmentEntry.letters.includes('C')) {
         // In CMU dictionary, soft C typically has an S sound
-        return alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('S');
+        return !(alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('K'));
     }
 
     // Fall back if 'c' wasn't the letter for this entry or phoneme info missing
@@ -713,6 +713,8 @@ function handleDiphthong(word, position, result) {
     }
 }
 
+const vowelDiacritics = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarMap['dot'], tengwarMap['right-curl'], tengwarMap['right-curl']];
+
 // Update the transcribeToTengwar function by modifying the handling of 'e'
 function transcribeToTengwar(text) {
     const lowerText = text.toLowerCase();
@@ -744,7 +746,9 @@ function transcribeToTengwar(text) {
             // If multiple phonemes map to one letter, the first phoneme mapping is stored.
         }
     }
-    console.log(pronunciation, alignment);
+    if (document.title === "Tengwar Tests") {
+        console.log(pronunciation, alignment);
+    }
 
     const result = [];
     let i = 0;
@@ -896,7 +900,7 @@ function transcribeToTengwar(text) {
         }
 
         if (vowelOnTop) { // add the vowel
-            if (i === 0 || !englishToTengwar[processedText[i - 1].toLowerCase()].char) { // add carrier if previous was also a vowel
+            if (result.length === 0 || vowelDiacritics.includes(result.at(-1))) { // add carrier if previous was also a vowel
                 result.push(tengwarMap['telco']);
             }
             result.push(vowelOnTop);
