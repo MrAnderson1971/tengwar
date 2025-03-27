@@ -1,6 +1,7 @@
 // Import the pronunciation library (only used for certain cases)
 import {dictionary} from 'cmu-pronouncing-dictionary';
-import {commonPatterns, englishToTengwar, specialWords, tengwarMap} from "./mappings";
+import {englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
+import {alignLettersToPhonemes} from "./align";
 
 // Track if Tengwar is currently enabled
 let tengwarEnabled = false;
@@ -406,130 +407,6 @@ function hasSilentE(word) {
     return hasEarlierVowel && isConsonant;
 }
 
-// This function aligns CMU dictionary phonemes with English spelling
-// It uses a rule-based approach with special handling for common English patterns
-function alignLettersToPhonemes(word, pronunciation) {
-    if (!pronunciation) {
-        return null;
-    }
-
-    const lowercaseWord = word.toLowerCase();
-    const phonemes = pronunciation.split(' ');
-
-    // Initialize result and tracking variables
-    const result = [];
-
-    // Copy the word and phonemes for processing
-    let remainingWord = lowercaseWord;
-    let remainingPhonemes = [...phonemes];
-    let currentWordIndex = 0;
-
-    // Primary alignment pass - try to align patterns
-    while (remainingWord.length > 0 && remainingPhonemes.length > 0) {
-        let matched = false;
-
-        // Try to match patterns at the current position
-        for (const pattern of commonPatterns) {
-            if (remainingWord.startsWith(pattern.letters) &&
-                pattern.phonemes.length <= remainingPhonemes.length &&
-                pattern.phonemes.every((p, i) => p === remainingPhonemes[i] ||
-                    (p[0] === remainingPhonemes[i][0] &&
-                        p[1] === remainingPhonemes[i][1]))) {
-                // Match vowel stress variations (e.g., AA0, AA1, AA2)
-
-                // Add each letter-phoneme pair to the result
-                for (let i = 0; i < pattern.letters.length; i++) {
-                    if (i < pattern.phonemes.length || pattern.phonemes.length === 0) {
-                        result.push({
-                            letters: pattern.letters[i],
-                            startIndex: currentWordIndex + i,
-                            endIndex: currentWordIndex + i,
-                            phoneme: i < pattern.phonemes.length ? remainingPhonemes[i] : null,
-                            pattern: pattern.letters
-                        });
-                    } else if (i >= pattern.phonemes.length && pattern.phonemes.length > 0) {
-                        // Excess letters mapped to the last phoneme
-                        result.push({
-                            letters: pattern.letters[i],
-                            startIndex: currentWordIndex + i,
-                            endIndex: currentWordIndex + i,
-                            phoneme: null,
-                            isSilent: true,
-                            pattern: pattern.letters
-                        });
-                    }
-                }
-
-                // Consume the pattern
-                remainingWord = remainingWord.slice(pattern.letters.length);
-                remainingPhonemes = remainingPhonemes.slice(pattern.phonemes.length);
-                currentWordIndex += pattern.letters.length;
-                matched = true;
-                break;
-            }
-        }
-
-        // If no pattern matched, process one character at a time
-        if (!matched) {
-            // Check for silent e at end of word
-            if (remainingWord.length === 1 && remainingWord === 'e' && remainingPhonemes.length === 0) {
-                result.push({
-                    letters: 'e',
-                    startIndex: currentWordIndex,
-                    endIndex: currentWordIndex,
-                    phoneme: null,
-                    isSilent: true
-                });
-                remainingWord = '';
-                currentWordIndex++;
-                continue;
-            }
-
-            // Handle single character
-            result.push({
-                letters: remainingWord[0],
-                startIndex: currentWordIndex,
-                endIndex: currentWordIndex,
-                phoneme: remainingPhonemes.length > 0 ? remainingPhonemes[0] : null,
-                isGuess: true
-            });
-
-            remainingWord = remainingWord.slice(1);
-            if (remainingPhonemes.length > 0) {
-                remainingPhonemes = remainingPhonemes.slice(1);
-            }
-            currentWordIndex++;
-        }
-    }
-
-    // Handle any remaining letters (likely silent)
-    while (remainingWord.length > 0) {
-        result.push({
-            letters: remainingWord[0],
-            startIndex: currentWordIndex,
-            endIndex: currentWordIndex,
-            phoneme: null,
-            isSilent: true
-        });
-        remainingWord = remainingWord.slice(1);
-        currentWordIndex++;
-    }
-
-    // Handle any remaining phonemes (rare - might be missing letters)
-    while (remainingPhonemes.length > 0) {
-        result.push({
-            letters: '',
-            startIndex: currentWordIndex > 0 ? currentWordIndex - 1 : 0,
-            endIndex: currentWordIndex > 0 ? currentWordIndex - 1 : 0,
-            phoneme: remainingPhonemes[0],
-            isMissing: true
-        });
-        remainingPhonemes = remainingPhonemes.slice(1);
-    }
-
-    return result;
-}
-
 /*
 S that sounds like Z.
  */
@@ -656,7 +533,8 @@ function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // M
         // In CMU, the 'ER' phoneme (like in "bird", "father") often corresponds
         // to the vocalic/syllabic R sound that might use 'oore'.
         // This is an approximation of the original intent based on local info.
-        if (alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('ER')) {
+        if (position > 0 && alignmentByIndex[position - 1].phoneme &&
+            vowelPhonemePatterns.test(alignmentByIndex[position - 1].phoneme.replace(/[0-9]$/, ''))) {
             return true; // Treat ER phoneme as indication for 'oore'
         }
         // If the phoneme is just 'R', it's likely the regular 'romen'
@@ -692,8 +570,7 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
             }
 
             // Check if 'e' is mapped to a non-vowel phoneme
-            const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
-            if (alignmentEntry.phoneme && !vowelPhonemePatterns.test(alignmentEntry.phoneme.replace(/[0-9]$/, ''))) {
+            if (alignmentEntry.phoneme && !vowelPhonemePatterns.test(alignmentEntry.phoneme)) {
                 // If the phoneme isn't a standard vowel sound, the 'e' might be silent
                 // or contributing to a consonant sound (less likely for 'e').
                 // This is a heuristic.
@@ -702,22 +579,7 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
         }
     }
 
-    // Fallback to pattern-based heuristics (these are O(1))
-    if (position > 1 && position < word.length - 1 &&
-        word[position - 1].toLowerCase() === 't' &&
-        word[position - 2].toLowerCase() === 'a' &&
-        word[position + 1].toLowerCase() === 'm') { // Example: 'statement'
-        return true;
-    }
-    if (position > 0 && position === word.length - 3 && // Check position relative to end for suffix
-        word.substring(position - 1, position + 3).toLowerCase() === 'ment') { // Example: 'develop MENT' -> E is silent
-        return true;
-    }
-    return position > 0 && position === word.length - 4 && // Check position relative to end for suffix
-        (word.substring(position - 1, position + 4).toLowerCase() === 'able' || // Example: 'cap ABLE' -> E is silent
-            word.substring(position - 1, position + 4).toLowerCase() === 'ible');
-
-     // Default: not silent
+    return false;
 }
 
 
@@ -901,6 +763,7 @@ function transcribeToTengwar(text) {
             // If multiple phonemes map to one letter, the first phoneme mapping is stored.
         }
     }
+    console.log(pronunciation, alignment);
 
     const result = [];
     let i = 0;

@@ -287,3 +287,5 @@ export const commonPatterns = [
     { letters: 'tt', phonemes: ['T'] },
     { letters: 'zz', phonemes: ['Z'] }
 ];
+
+export const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)[0-9]?/;
