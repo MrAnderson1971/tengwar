@@ -294,6 +294,98 @@ function isHardR(word, position) {
     return prevChar && vowels.includes(prevChar) && (!nextChar || !vowels.includes(nextChar));
 }
 
+// Improved detection of silent E
+function hasSilentEImproved(word, pronunciation) {
+    // Quick check - if the word doesn't end with 'e', it's not a silent e
+    if (word.length < 2 || word[word.length - 1].toLowerCase() !== 'e') {
+        return false;
+    }
+
+    // If no pronunciation data, fall back to heuristic
+    if (!pronunciation) {
+        return hasSilentE(word);
+    }
+
+    // Split the pronunciation into phonemes
+    const phonemes = pronunciation.split(' ');
+
+    // List of vowel phonemes in CMU dictionary
+    const vowelPhonemes = [
+        "AA", "AA0", "AA1", "AA2",
+        "AE", "AE0", "AE1", "AE2",
+        "AH", "AH0", "AH1", "AH2",
+        "AO", "AO0", "AO1", "AO2",
+        "AW", "AW0", "AW1", "AW2",
+        "AY", "AY0", "AY1", "AY2",
+        "EH", "EH0", "EH1", "EH2",
+        "ER", "ER0", "ER1", "ER2",
+        "EY", "EY0", "EY1", "EY2",
+        "IH", "IH0", "IH1", "IH2",
+        "IY", "IY0", "IY1", "IY2",
+        "OW", "OW0", "OW1", "OW2",
+        "OY", "OY0", "OY1", "OY2",
+        "UH", "UH0", "UH1", "UH2",
+        "UW", "UW0", "UW1", "UW2"
+    ];
+
+    // Check if there's a final 'e' sound in the pronunciation
+    const lastPhoneme = phonemes[phonemes.length - 1];
+
+    // A more reliable way to detect silent 'e':
+    // 1. Count the number of vowel sounds in the pronunciation
+    // 2. Count the number of vowel letters in the word
+    // 3. If there are fewer vowel sounds than vowel letters, and the word ends with 'e',
+    //    then the 'e' is likely silent
+
+    const vowelLetters = ['a', 'e', 'i', 'o', 'u', 'y'];
+    let vowelLetterCount = 0;
+    for (let i = 0; i < word.length; i++) {
+        if (vowelLetters.includes(word[i].toLowerCase())) {
+            vowelLetterCount++;
+        }
+    }
+
+    let vowelPhonemeCount = 0;
+    for (const phoneme of phonemes) {
+        // Remove stress markers for comparison
+        const basePhoneme = phoneme.replace(/[0-9]$/, '');
+        if (vowelPhonemes.includes(basePhoneme)) {
+            vowelPhonemeCount++;
+        }
+    }
+
+    // Final 'e' is likely silent if there are fewer vowel sounds than vowel letters
+    if (vowelLetterCount > vowelPhonemeCount) {
+        return true;
+    }
+
+    // For cases like "make" where the 'a' creates a diphthong with the 'e'
+    // but the 'e' itself is silent
+    const vowelsBeforeE = [];
+    for (let i = 0; i < word.length - 1; i++) {
+        if (vowelLetters.includes(word[i].toLowerCase())) {
+            vowelsBeforeE.push(word[i].toLowerCase());
+        }
+    }
+
+    // Check common silent 'e' patterns
+    if (vowelsBeforeE.length > 0) {
+        const lastVowelBeforeE = vowelsBeforeE[vowelsBeforeE.length - 1];
+        const indexOfLastVowel = word.toLowerCase().lastIndexOf(lastVowelBeforeE, word.length - 2);
+
+        // Check if there's a consonant between the last vowel and the final 'e'
+        if (indexOfLastVowel >= 0 && indexOfLastVowel < word.length - 2) {
+            // This is a classic silent 'e' pattern like "make", "site", "code"
+            return true;
+        }
+    }
+
+    // Last resort check: if the final phoneme is not a vowel sound,
+    // the final 'e' is likely silent
+    const lastPhonemeBase = lastPhoneme.replace(/[0-9]$/, '');
+    return !vowelPhonemes.includes(lastPhonemeBase);
+}
+
 function hasSilentE(word) {
     if (word.length < 2) {
         return false;
@@ -347,8 +439,6 @@ function alignLettersToPhonemes(word, pronunciation) {
 
                 // Add each letter-phoneme pair to the result
                 for (let i = 0; i < pattern.letters.length; i++) {
-                    const phoneIdx = Math.min(i, pattern.phonemes.length - 1);
-
                     if (i < pattern.phonemes.length || pattern.phonemes.length === 0) {
                         result.push({
                             letters: pattern.letters[i],
@@ -443,233 +533,266 @@ function alignLettersToPhonemes(word, pronunciation) {
 /*
 S that sounds like Z.
  */
-function isHardS(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        return false;
+function isHardS(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+
+    if (!pronunciation || !alignmentEntry) {
+        return false; // Cannot determine from pronunciation
     }
 
-    for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters.includes('s')) {
-            return entry.phoneme && entry.phoneme.startsWith('Z');
-        }
+    // Check the alignment entry for this position
+    if (alignmentEntry.letters.includes('s') || alignmentEntry.letters.includes('S')) { // Check original letter
+        return alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('Z');
     }
-    return false;
+
+    return false; // Letter at position is not 's' according to alignment
 }
 
 // Improved disambiguation for NG digraph
-function isNgDigraphImproved(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        // Fall back to the original heuristic if no pronunciation available
+function isNgDigraphImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntryN = alignmentByIndex ? alignmentByIndex[position] : null;     // O(1) lookup for 'n'
+    const alignmentEntryG = alignmentByIndex ? alignmentByIndex[position + 1] : null; // O(1) lookup for 'g'
+
+    if (!pronunciation || !alignmentEntryN) {
+        // Fall back to the original heuristic if no pronunciation or alignment
         return isNgDigraph(word, position);
     }
 
-    // First, check if there's a direct 'ng' entry at this position
-    for (const entry of alignment) {
-        if (entry.startIndex === position) {
-            // It's a digraph if it maps to a single NG phoneme
-            return entry.phoneme && entry.phoneme.startsWith('NG');
-        }
+    // Check if the phoneme for 'n' at this position is 'NG'
+    // This implies 'n' and 'g' were treated as one unit mapped to NG.
+    if (alignmentEntryN.phoneme && alignmentEntryN.phoneme.startsWith('NG')) {
+        // Check if the alignment entry actually covers both 'n' and 'g'
+        // (This depends on how alignLettersToPhonemes works)
+        // A simpler check is just the phoneme, assuming alignment is reasonable.
+        return true;
     }
 
-    // If we didn't find a direct 'ng' entry, check if there's an 'n' at this position
-    // followed by a 'g' at the next position - this means it's NOT a digraph
-    for (let i = 0; i < alignment.length - 1; i++) {
-        if (alignment[i].startIndex === position && alignment[i].letters === 'n' &&
-            alignment[i + 1].startIndex === position + 1 && alignment[i + 1].letters === 'g') {
-            // We found separate 'n' and 'g' entries, so it's not a digraph
-            return false;
-        }
+    // Check if 'n' has its own phoneme (like 'N') and 'g' has its own (like 'G')
+    if (alignmentEntryN.phoneme && alignmentEntryN.phoneme.startsWith('N') &&
+        alignmentEntryG && alignmentEntryG.phoneme && alignmentEntryG.phoneme.startsWith('G')) {
+        return false; // Separate sounds
     }
 
-    // Fall back to the original heuristic if we couldn't determine from alignment
+    // Fall back if alignment is unclear
     return isNgDigraph(word, position);
 }
 
 // Improved disambiguation for soft/hard C
-function isSoftCImproved(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        // Fall back to the original heuristic if no pronunciation available
+function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+
+    if (!pronunciation || !alignmentEntry) {
+        // Fall back to the original heuristic
         return isSoftC(word, position);
     }
 
-    // Find the entry for this position
-    for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters.includes('c')) {
-            // In CMU dictionary, soft C typically has an S sound
-            return entry.phoneme && entry.phoneme.startsWith('S');
-        }
+    // Check the alignment entry for this position
+    if (alignmentEntry.letters.includes('c') || alignmentEntry.letters.includes('C')) {
+        // In CMU dictionary, soft C typically has an S sound
+        return alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('S');
     }
 
-    // Fall back to the original heuristic
+    // Fall back if 'c' wasn't the letter for this entry or phoneme info missing
     return isSoftC(word, position);
 }
 
 // Improved disambiguation for consonant Y
-function isConsonantYImproved(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        // Fall back to the original heuristic if no pronunciation available
+function isConsonantYImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+
+    if (!pronunciation || !alignmentEntry) {
+        // Fall back to the original heuristic
         return isConsonantY(word, position);
     }
 
-    // Find the entry for this position
-    for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters === 'y') {
-            // In CMU dictionary, consonant Y is typically a 'Y' phoneme
-            return entry.phoneme === 'Y';
-        }
+    // Check the alignment entry for this position
+    if (alignmentEntry.letters === 'y' || alignmentEntry.letters === 'Y') {
+        // In CMU dictionary, consonant Y is typically a 'Y' phoneme
+        return alignmentEntry.phoneme === 'Y';
     }
 
-    // Fall back to the original heuristic
+    // Fall back if 'y' wasn't the letter or phoneme info missing
     return isConsonantY(word, position);
 }
 
 // Improved detection of y vowel type (long vs short)
-function getYVowelTypeImproved(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        // Fall back to the original implementation
-        return getYVowelType(word, position, pronunciation);
+function getYVowelTypeImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+
+    if (!pronunciation || !alignmentEntry) {
+        // Fall back to the original implementation's heuristic
+        return getYVowelType(word, position, pronunciation); // Pass original pronunciation for heuristic
     }
 
-    // Find the entry for this position
-    for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters === 'y') {
-            // Check the specific phoneme for this 'y'
-            if (entry.phoneme) {
-                // Long Y sounds in CMU dict: 'AY', 'AY0', 'AY1', 'AY2'
-                // These correspond to the 'y' sound in words like "my", "why", "sky"
-                if (entry.phoneme.startsWith('AY')) {
-                    return 'long';
-                }
-
-                // Short Y sounds in CMU dict: 'IY', 'IY0', 'IY1', 'IY2', 'IH', 'IH0', 'IH1', 'IH2'
-                // These correspond to the 'y' sound in words like "happy", "quickly"
-                if (entry.phoneme.startsWith('IY') || entry.phoneme.startsWith('IH')) {
-                    return 'short';
-                }
+    // Check the alignment entry for this position
+    if (alignmentEntry.letters === 'y' || alignmentEntry.letters === 'Y') {
+        // Check the specific phoneme for this 'y'
+        if (alignmentEntry.phoneme) {
+            // Long Y sounds
+            if (alignmentEntry.phoneme.startsWith('AY')) {
+                return 'long';
+            }
+            // Short Y sounds
+            if (alignmentEntry.phoneme.startsWith('IY') || alignmentEntry.phoneme.startsWith('IH')) {
+                return 'short';
             }
         }
     }
 
-    // Fall back to the original implementation
+    // Fall back if 'y' wasn't the letter or phoneme didn't match known patterns
     return getYVowelType(word, position, pronunciation);
 }
 
 // Improved disambiguation for hard R
-function isHardRImproved(word, position, pronunciation, alignment) {
-    if (!pronunciation || !alignment) {
-        // Fall back to the original heuristic if no pronunciation available
+function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+
+    if (!pronunciation || !alignmentEntry) {
+        // Fall back to the original heuristic
         return isHardR(word, position);
     }
 
-    // Find the entry for this
-    alignment.forEach((entry, phonemeIndex) => {
-        if (entry.startIndex === position && entry.letters.includes('r')) {
-            // Check surrounding phonetic context
-            // Hard R typically appears in certain positions like post-vowel pre-consonant
-            const prevPhoneme = phonemeIndex > 0 ? alignment[phonemeIndex - 1].phoneme : null;
-            const nextPhoneme = phonemeIndex < alignment.length - 1 ? alignment[phonemeIndex + 1].phoneme : null;
-
-            // If previous phoneme is a vowel sound and next is not a vowel sound
-            const isVowelPhoneme = (p) => p && /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/.test(p);
-
-            return isVowelPhoneme(prevPhoneme) && (!nextPhoneme || !isVowelPhoneme(nextPhoneme));
+    if (alignmentEntry.letters.includes('r') || alignmentEntry.letters.includes('R')) {
+        // In CMU, the 'ER' phoneme (like in "bird", "father") often corresponds
+        // to the vocalic/syllabic R sound that might use 'oore'.
+        // This is an approximation of the original intent based on local info.
+        if (alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('ER')) {
+            return true; // Treat ER phoneme as indication for 'oore'
         }
-    });
+        // If the phoneme is just 'R', it's likely the regular 'romen'
+        if (alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('R')) {
+            return false;
+        }
+    }
 
-    // Fall back to the original heuristic
+    // Fall back to the original heuristic if uncertain
     return isHardR(word, position);
 }
 
 // Improved detection of silent E
-function hasSilentEImproved(word, pronunciation) {
-    // Quick check - if the word doesn't end with 'e', it's not a silent e
-    if (word.length < 2 || word[word.length - 1].toLowerCase() !== 'e') {
+function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    // Check if the letter is actually an 'e'
+    if (word[position].toLowerCase() !== 'e') {
         return false;
     }
 
-    // If no pronunciation data, fall back to heuristic
-    if (!pronunciation) {
-        return hasSilentE(word);
+    // If it's at the end, don't process here
+    if (position === word.length - 1) {
+        return false;
     }
 
-    // Split the pronunciation into phonemes
-    const phonemes = pronunciation.split(' ');
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
 
-    // List of vowel phonemes in CMU dictionary
-    const vowelPhonemes = [
-        "AA", "AA0", "AA1", "AA2",
-        "AE", "AE0", "AE1", "AE2",
-        "AH", "AH0", "AH1", "AH2",
-        "AO", "AO0", "AO1", "AO2",
-        "AW", "AW0", "AW1", "AW2",
-        "AY", "AY0", "AY1", "AY2",
-        "EH", "EH0", "EH1", "EH2",
-        "ER", "ER0", "ER1", "ER2",
-        "EY", "EY0", "EY1", "EY2",
-        "IH", "IH0", "IH1", "IH2",
-        "IY", "IY0", "IY1", "IY2",
-        "OW", "OW0", "OW1", "OW2",
-        "OY", "OY0", "OY1", "OY2",
-        "UH", "UH0", "UH1", "UH2",
-        "UW", "UW0", "UW1", "UW2"
-    ];
+    // Use pronunciation data if available
+    if (pronunciation && alignmentEntry) {
+        if (alignmentEntry.letters === 'e' || alignmentEntry.letters === 'E') {
+            // If it has no phoneme or is marked as silent, it's silent
+            if (!alignmentEntry.phoneme || alignmentEntry.isSilent) {
+                return true;
+            }
 
-    // Check if there's a final 'e' sound in the pronunciation
-    const lastPhoneme = phonemes[phonemes.length - 1];
-
-    // A more reliable way to detect silent 'e':
-    // 1. Count the number of vowel sounds in the pronunciation
-    // 2. Count the number of vowel letters in the word
-    // 3. If there are fewer vowel sounds than vowel letters, and the word ends with 'e',
-    //    then the 'e' is likely silent
-
-    const vowelLetters = ['a', 'e', 'i', 'o', 'u', 'y'];
-    let vowelLetterCount = 0;
-    for (let i = 0; i < word.length; i++) {
-        if (vowelLetters.includes(word[i].toLowerCase())) {
-            vowelLetterCount++;
+            // Check if 'e' is mapped to a non-vowel phoneme
+            const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
+            if (alignmentEntry.phoneme && !vowelPhonemePatterns.test(alignmentEntry.phoneme.replace(/[0-9]$/, ''))) {
+                // If the phoneme isn't a standard vowel sound, the 'e' might be silent
+                // or contributing to a consonant sound (less likely for 'e').
+                // This is a heuristic.
+                return true;
+            }
         }
     }
 
-    let vowelPhonemeCount = 0;
-    for (const phoneme of phonemes) {
-        // Remove stress markers for comparison
-        const basePhoneme = phoneme.replace(/[0-9]$/, '');
-        if (vowelPhonemes.includes(basePhoneme)) {
-            vowelPhonemeCount++;
-        }
-    }
-
-    // Final 'e' is likely silent if there are fewer vowel sounds than vowel letters
-    if (vowelLetterCount > vowelPhonemeCount) {
+    // Fallback to pattern-based heuristics (these are O(1))
+    if (position > 1 && position < word.length - 1 &&
+        word[position - 1].toLowerCase() === 't' &&
+        word[position - 2].toLowerCase() === 'a' &&
+        word[position + 1].toLowerCase() === 'm') { // Example: 'statement'
         return true;
     }
+    if (position > 0 && position === word.length - 3 && // Check position relative to end for suffix
+        word.substring(position - 1, position + 3).toLowerCase() === 'ment') { // Example: 'develop MENT' -> E is silent
+        return true;
+    }
+    return position > 0 && position === word.length - 4 && // Check position relative to end for suffix
+        (word.substring(position - 1, position + 4).toLowerCase() === 'able' || // Example: 'cap ABLE' -> E is silent
+            word.substring(position - 1, position + 4).toLowerCase() === 'ible');
 
-    // For cases like "make" where the 'a' creates a diphthong with the 'e'
-    // but the 'e' itself is silent
-    const vowelsBeforeE = [];
-    for (let i = 0; i < word.length - 1; i++) {
-        if (vowelLetters.includes(word[i].toLowerCase())) {
-            vowelsBeforeE.push(word[i].toLowerCase());
+     // Default: not silent
+}
+
+
+// Function to detect if vowels are in the same syllable using pronunciation data
+// Similar issue to isHardRImproved - checking relationship between phonemes at pos/pos+1
+// requires looking at two alignment entries. This is still O(1) with the index.
+function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    // If not enough characters for a diphthong
+    if (position >= word.length - 1) {
+        return false;
+    }
+
+    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
+    const char = word[position].toLowerCase();
+    const nextChar = word[position + 1].toLowerCase();
+
+    // Both characters must be vowels
+    if (!vowels.includes(char) || !vowels.includes(nextChar)) {
+        return false;
+    }
+
+    const possibleDiphthong = char + nextChar;
+
+    if ((possibleDiphthong === 'ia' || possibleDiphthong === 'io' || possibleDiphthong === 'iu') &&
+        position > 0 && !vowels.includes(word[position - 1])) {
+        return false;
+    }
+
+    // Use pronunciation data if available
+    const alignmentEntry1 = alignmentByIndex ? alignmentByIndex[position] : null;     // O(1) lookup
+    const alignmentEntry2 = alignmentByIndex ? alignmentByIndex[position + 1] : null; // O(1) lookup
+
+    if (pronunciation && alignmentEntry1) {
+        const firstVowelPhoneme = alignmentEntry1.phoneme;
+        const secondVowelPhoneme = alignmentEntry2 ? alignmentEntry2.phoneme : null; // May be null if second char is silent/merged
+
+        // If the first vowel's alignment entry spans both letters (check indices if available)
+        // or if the second letter has no phoneme (silent/merged), check if the first phoneme is a diphthong.
+        if (firstVowelPhoneme && (!alignmentEntry2 || !secondVowelPhoneme || alignmentEntry2.isSilent)) {
+            // Check if the phoneme assigned to the first vowel IS a diphthong phoneme
+            const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW"]; // UW/IY are usually single vowels
+            for (const dp of diphthongPhonemes) {
+                // Check base phoneme without stress marker
+                if (firstVowelPhoneme.replace(/[0-9]$/, '') === dp) {
+                    return true; // e.g., 'oi' in "coin" maps to OY1
+                }
+            }
+        }
+
+        // If both vowels have their OWN vowel phonemes, they are likely separate syllables.
+        const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
+        if (firstVowelPhoneme && secondVowelPhoneme &&
+            vowelPhonemePatterns.test(firstVowelPhoneme.replace(/[0-9]$/, '')) &&
+            vowelPhonemePatterns.test(secondVowelPhoneme.replace(/[0-9]$/, ''))) {
+            // Check stress markers if needed (as in original) for more confidence
+            const firstStress = firstVowelPhoneme.match(/[0-9]$/);
+            const secondStress = secondVowelPhoneme.match(/[0-9]$/);
+            if (firstStress && secondStress && firstStress[0] !== secondStress[0]) {
+                return false; // Different stress = different syllables (e.g., creATE)
+            }
+            // If same stress or one unstressed, assume separate unless proven otherwise
+            // (This heuristic might misclassify some diphthongs not in the list below)
+            return false;
         }
     }
 
-    // Check common silent 'e' patterns
-    if (vowelsBeforeE.length > 0) {
-        const lastVowelBeforeE = vowelsBeforeE[vowelsBeforeE.length - 1];
-        const indexOfLastVowel = word.toLowerCase().lastIndexOf(lastVowelBeforeE, word.length - 2);
-
-        // Check if there's a consonant between the last vowel and the final 'e'
-        if (indexOfLastVowel >= 0 && indexOfLastVowel < word.length - 2) {
-            // This is a classic silent 'e' pattern like "make", "site", "code"
-            return true;
-        }
-    }
-
-    // Last resort check: if the final phoneme is not a vowel sound,
-    // the final 'e' is likely silent
-    const lastPhonemeBase = lastPhoneme.replace(/[0-9]$/, '');
-    return !vowelPhonemes.includes(lastPhonemeBase);
+    // Fallback to known common diphthong letter pairs (O(1))
+    const commonDiphthongs = [
+        'ae', 'ai', 'ay', 'au', 'aw',
+        'ea', 'ei', 'ey',
+        'oi', 'oy',
+        'ou', 'ow',
+        'ue' // Added ue
+    ];
+    return commonDiphthongs.includes(possibleDiphthong);
 }
 
 // Function to get a cached or new pronunciation
@@ -688,122 +811,6 @@ function getPronunciation(word) {
     }
 
     return pronunciation;
-}
-
-// Function to detect if vowels are in the same syllable using pronunciation data
-function isDiphthong(word, position, pronunciation, alignment) {
-    // If not enough characters for a diphthong
-    if (position >= word.length - 1) {
-        return false;
-    }
-
-    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const char = word[position].toLowerCase();
-    const nextChar = word[position + 1].toLowerCase();
-
-    // Both characters must be vowels
-    if (!vowels.includes(char) || !vowels.includes(nextChar)) {
-        return false;
-    }
-
-    const possibleDiphthong = char + nextChar;
-
-    // ALWAYS exclude common patterns that are never diphthongs
-    // regardless of pronunciation data
-
-    // 1. Specific words we know have syllable breaks
-    const noTreatAsDiphthong = [
-        'wikipedia', 'piano', 'video', 'radio', 'violin',
-        'diet', 'quiet', 'client', 'dial', 'trial',
-        'create', 'react', 'reality', 'theatre', 'area',
-        'biography', 'geology', 'theology', 'theory'
-    ];
-
-    // Check if our word is in the blacklist or contains one of these words
-    for (const exclude of noTreatAsDiphthong) {
-        if (word.toLowerCase() === exclude ||
-            word.toLowerCase().includes(exclude)) {
-            return false;
-        }
-    }
-
-    // 2. Pattern for ia/io/iu where typically i forms its own syllable
-    // e.g., "di-a-" in "diagram", "biography", "di-o-" in "dioxide"
-    if ((possibleDiphthong === 'ia' || possibleDiphthong === 'io' || possibleDiphthong === 'iu') &&
-        position > 0 && !vowels.includes(word[position - 1])) {
-        // The pattern consonant+i+a/o/u is usually separate syllables
-        return false;
-    }
-
-    // 3. Common prefixes with syllable breaks
-    const prefixesWithBreaks = ['geo', 'neo', 'theo', 'bio'];
-    for (const prefix of prefixesWithBreaks) {
-        if (word.substring(0, prefix.length).toLowerCase() === prefix &&
-            position === prefix.length - 1) {
-            return false;
-        }
-    }
-
-    // Use pronunciation data if available
-    if (pronunciation && alignment) {
-        // We need a proper mapping to determine which letter corresponds to which phoneme
-        // Check if the two vowels map to a single phoneme (true diphthong)
-        // or map to separate phonemes (separate syllables)
-        let foundFirstVowel = false;
-        let firstVowelPhoneme = null;
-        let secondVowelPhoneme = null;
-
-        for (const entry of alignment) {
-            if (entry.startIndex === position) {
-                foundFirstVowel = true;
-                firstVowelPhoneme = entry.phoneme;
-            } else if (entry.startIndex === position + 1 && foundFirstVowel) {
-                secondVowelPhoneme = entry.phoneme;
-                break;
-            }
-        }
-
-        // If both vowels map to the same phoneme, they're likely a diphthong
-        if (firstVowelPhoneme && !secondVowelPhoneme) {
-            // Check if the phoneme is a known diphthong phoneme
-            const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW", "UW"];
-            for (const dp of diphthongPhonemes) {
-                if (firstVowelPhoneme.startsWith(dp)) {
-                    return true;
-                }
-            }
-        }
-
-        // If both vowels have their own phonemes with different stress markers,
-        // they're in different syllables
-        if (firstVowelPhoneme && secondVowelPhoneme) {
-            // Extract stress markers (0, 1, 2)
-            const firstStress = firstVowelPhoneme.match(/[0-9]$/);
-            const secondStress = secondVowelPhoneme.match(/[0-9]$/);
-
-            // If both vowels have stress markers and they're different,
-            // we know they're in separate syllables
-            if (firstStress && secondStress && firstStress[0] !== secondStress[0]) {
-                return false;
-            }
-
-            // If they have the same stress or one is unstressed,
-            // it's harder to determine
-        }
-    }
-
-    // Fallback to our list of known diphthongs
-    // Let's only consider known diphthongs that frequently
-    // appear as true diphthongs in English
-    const commonDiphthongs = [
-        'ae', 'ai', 'ay', 'au', 'aw',  // as in "sail", "ray", "caught", "claw"
-        'ea', 'ei', 'ey',              // as in "vein", "they"
-        'oi', 'oy',              // as in "coin", "boy"
-        'ou', 'ow',               // as in "out", "cow"
-        'ue'
-    ];
-
-    return commonDiphthongs.includes(possibleDiphthong);
 }
 
 // Get diphthong type based on second vowel
@@ -863,68 +870,6 @@ function handleDiphthong(word, position, result) {
     }
 }
 
-// New function to detect silent 'e' in the middle of words
-function isSilentEInMiddle(word, position, pronunciation, alignment) {
-    // Check if the letter is actually an 'e'
-    if (word[position].toLowerCase() !== 'e') {
-        return false;
-    }
-
-    // If it's at the end, don't process here (use the existing function)
-    if (position === word.length - 1) {
-        return false;
-    }
-
-    // Use pronunciation data if available
-    if (pronunciation && alignment) {
-        for (const entry of alignment) {
-            if (entry.startIndex === position && entry.letters === 'e') {
-                // If it has no phoneme or is marked as silent, it's silent
-                if (!entry.phoneme || entry.isSilent) {
-                    return true;
-                }
-
-                // Check if 'e' is mapped to a consonant phoneme (which suggests it's silent or schwa)
-                // Vowel phonemes in CMU dict start with: AA, AE, AH, AO, AW, AY, EH, ER, EY, IH, IY, OW, OY, UH, UW
-                // If 'e' is mapped to anything else, it's likely silent or part of another sound
-                const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
-                if (entry.phoneme && !vowelPhonemePatterns.test(entry.phoneme)) {
-                    return true;
-                }
-
-                // Also check if the phoneme assignment looks suspicious
-                // (e.g., an 'e' shouldn't be mapped to an 'M' or 'N' phoneme)
-                if (entry.phoneme && /^[BCDFGHJKLMNPQRSTVWXZ]/.test(entry.phoneme)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    // Common patterns for silent 'e' in the middle of words
-
-    // 1. In English, 'e' is often silent in the pattern 'Consonant + ate + m'
-    // This catches words like 'statement', 'statecraft', etc.
-    if (position > 1 && position < word.length - 1 &&
-        position + 1 < word.length &&
-        word[position - 1].toLowerCase() === 't' &&
-        word[position - 2].toLowerCase() === 'a' &&
-        word[position + 1].toLowerCase() === 'm') {
-        return true;
-    }
-
-    // 2. The 'e' in '-ment' suffix is often silent
-    if (position > 0 && position < word.length - 2 &&
-        word.substring(position - 1, position + 3).toLowerCase() === 'ment') {
-        return true;
-    }
-
-    // 3. The 'e' in '-able', '-ible' suffixes is often silent
-    return position > 0 && position < word.length - 3 &&
-        (word.substring(position - 1, position + 4).toLowerCase() === 'able' ||
-            word.substring(position - 1, position + 4).toLowerCase() === 'ible');
-}
-
 // Update the transcribeToTengwar function by modifying the handling of 'e'
 function transcribeToTengwar(text) {
     const lowerText = text.toLowerCase();
@@ -936,8 +881,26 @@ function transcribeToTengwar(text) {
 
     // Get pronunciation
     const pronunciation = getPronunciation(processedText);
-    const alignment = alignLettersToPhonemes(processedText, pronunciation);
-    console.log(pronunciation, alignment);
+    const alignmentNaive = alignLettersToPhonemes(processedText, pronunciation);
+    const alignment = new Array(processedText.length).fill(null);
+
+    if (alignmentNaive) {
+        for (const entry of alignmentNaive) {
+            // Ensure the entry has a valid startIndex within the word bounds
+            if (entry.startIndex >= 0 && entry.startIndex < processedText.length) {
+                // Simple case: Assign the entry to its starting index.
+                // If multiple entries share a startIndex (e.g., if aligner grouped letters),
+                // this might need refinement, but the current aligner aims for 1 per letter.
+                if (alignment[entry.startIndex] === null) { // Prefer the first entry if duplicates somehow occur
+                    alignment[entry.startIndex] = entry;
+                }
+            }
+            // Note: This assumes alignLettersToPhonemes provides start/end indices
+            // correctly mapping letters to phonemes. If a single phoneme maps
+            // to multiple letters (like 'sh' -> 'SH'), this simple mapping works.
+            // If multiple phonemes map to one letter, the first phoneme mapping is stored.
+        }
+    }
 
     const result = [];
     let i = 0;
