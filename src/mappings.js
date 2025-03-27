@@ -1,4 +1,3 @@
-
 // Mapping based on the actual characters from the compiled LaTeX document
 // This maps LaTeX commands to their corresponding characters in the Annatar font
 export const tengwarMap = {
@@ -197,3 +196,94 @@ export const phonemeToLetterPatterns = {
     'Z': ['z', 's', 'zz', 'x', 'ss'],
     'ZH': ['s', 'z', 'g']
 };
+
+// Add common suffixes to the multi-phoneme patterns
+export const commonSuffixes = {
+    'IH0 NG': ['ing'],
+    'AH0 NG': ['ung'],
+    'IY0 NG': ['eeing'],
+    'EH0 D': ['ed'],
+    'D': ['ed', 'd'],
+    'T': ['ed', 't'],
+    'AH0 L': ['le'],
+    'AH0 L IY0': ['ally', 'aly'],
+    'L IY0': ['ly', 'ley', 'li'],
+    'F AH0 L': ['ful'],
+    'M AH0 N T': ['ment'],
+    'N AH0 S': ['ness', 'nes'],
+    'AH0 B AH0 L': ['able'],
+    'IH0 B AH0 L': ['ible'],
+    'SH AH0 N': ['tion', 'sion', 'cion'],
+    'Z': ['s'],
+    'S': ['s', 'ce', 'se']
+};
+
+// Set up common English spelling patterns with their typical phoneme sequences
+export const commonPatterns = [
+    // Common suffixes
+    { letters: 'ing', phonemes: ['IH0', 'NG'] },
+    { letters: 'ed', phonemes: ['D'] },
+    { letters: 'ed', phonemes: ['IH0', 'D'] },
+    { letters: 'ed', phonemes: ['T'] },
+    { letters: 's', phonemes: ['S'] },
+    { letters: 's', phonemes: ['Z'] },
+    { letters: 'es', phonemes: ['IH0', 'Z'] },
+    { letters: 'ly', phonemes: ['L', 'IY0'] },
+    { letters: 'ally', phonemes: ['AH0', 'L', 'IY0'] },
+    { letters: 'ment', phonemes: ['M', 'AH0', 'N', 'T'] },
+    { letters: 'tion', phonemes: ['SH', 'AH0', 'N'] },
+    { letters: 'sion', phonemes: ['ZH', 'AH0', 'N'] },
+
+    // Common vowel patterns
+    { letters: 'ai', phonemes: ['EY1'] },
+    { letters: 'ay', phonemes: ['EY1'] },
+    { letters: 'ea', phonemes: ['IY1'] },
+    { letters: 'ee', phonemes: ['IY1'] },
+    { letters: 'ie', phonemes: ['AY1'] },
+    { letters: 'igh', phonemes: ['AY1'] },
+    { letters: 'oo', phonemes: ['UW1'] },
+    { letters: 'ou', phonemes: ['AW1'] },
+    { letters: 'ow', phonemes: ['AW1'] },
+    { letters: 'oa', phonemes: ['OW1'] },
+
+    // R-colored vowels
+    { letters: 'air', phonemes: ['EH1', 'R'] },
+    { letters: 'are', phonemes: ['EH1', 'R'] },
+    { letters: 'ear', phonemes: ['IH1', 'R'] },
+    { letters: 'eer', phonemes: ['IH1', 'R'] },
+    { letters: 'er', phonemes: ['ER0'] },
+    { letters: 'er', phonemes: ['ER1'] },
+    { letters: 'ir', phonemes: ['ER1'] },
+    { letters: 'or', phonemes: ['AO1', 'R'] },
+    { letters: 'ore', phonemes: ['AO1', 'R'] },
+    { letters: 'our', phonemes: ['AW1', 'R'] },
+    { letters: 'ur', phonemes: ['ER1'] },
+
+    // Common consonant digraphs
+    { letters: 'ch', phonemes: ['CH'] },
+    { letters: 'ck', phonemes: ['K'] },
+    { letters: 'gh', phonemes: [] }, // Often silent
+    { letters: 'kn', phonemes: ['N'] },
+    { letters: 'ng', phonemes: ['NG'] },
+    { letters: 'ph', phonemes: ['F'] },
+    { letters: 'sh', phonemes: ['SH'] },
+    { letters: 'th', phonemes: ['TH'] },
+    { letters: 'th', phonemes: ['DH'] },
+    { letters: 'wh', phonemes: ['W'] },
+    { letters: 'wr', phonemes: ['R'] },
+
+    // Doubled consonants (usually pronounced as single)
+    { letters: 'bb', phonemes: ['B'] },
+    { letters: 'cc', phonemes: ['K'] },
+    { letters: 'dd', phonemes: ['D'] },
+    { letters: 'ff', phonemes: ['F'] },
+    { letters: 'gg', phonemes: ['G'] },
+    { letters: 'll', phonemes: ['L'] },
+    { letters: 'mm', phonemes: ['M'] },
+    { letters: 'nn', phonemes: ['N'] },
+    { letters: 'pp', phonemes: ['P'] },
+    { letters: 'rr', phonemes: ['R'] },
+    { letters: 'ss', phonemes: ['S'] },
+    { letters: 'tt', phonemes: ['T'] },
+    { letters: 'zz', phonemes: ['Z'] }
+];

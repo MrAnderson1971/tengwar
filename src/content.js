@@ -1,6 +1,6 @@
 // Import the pronunciation library (only used for certain cases)
 import {dictionary} from 'cmu-pronouncing-dictionary';
-import {englishToTengwar, multiPhonemePatterns, phonemeToLetterPatterns, specialWords, tengwarMap} from "./mappings";
+import {commonPatterns, englishToTengwar, specialWords, tengwarMap} from "./mappings";
 
 // Track if Tengwar is currently enabled
 let tengwarEnabled = false;
@@ -315,7 +315,7 @@ function hasSilentE(word) {
 }
 
 // This function aligns CMU dictionary phonemes with English spelling
-// It starts from phonemes and maps them to letters for better accuracy
+// It uses a rule-based approach with special handling for common English patterns
 function alignLettersToPhonemes(word, pronunciation) {
     if (!pronunciation) {
         return null;
@@ -326,150 +326,115 @@ function alignLettersToPhonemes(word, pronunciation) {
 
     // Initialize result and tracking variables
     const result = [];
+
+    // Copy the word and phonemes for processing
+    let remainingWord = lowercaseWord;
+    let remainingPhonemes = [...phonemes];
     let currentWordIndex = 0;
 
-    // Process phonemes, looking ahead for multi-phoneme patterns
-    let i = 0;
-    while (i < phonemes.length) {
-        // Try to match multi-phoneme patterns first
-        let multiPhonemeMatched = false;
-
-        // Look ahead for phoneme sequences
-        for (let lookAhead = 2; lookAhead > 0; lookAhead--) {
-            if (i + lookAhead - 1 < phonemes.length) {
-                // Create potential multi-phoneme key
-                const phonemeSequence = phonemes.slice(i, i + lookAhead).join(' ');
-
-                if (multiPhonemePatterns[phonemeSequence]) {
-                    const possiblePatterns = multiPhonemePatterns[phonemeSequence];
-
-                    // Sort patterns by length (descending) to try longer patterns first
-                    const sortedPatterns = [...possiblePatterns].sort((a, b) => b.length - a.length);
-
-                    // Try each pattern against remaining word
-                    for (const pattern of sortedPatterns) {
-                        // Check if pattern matches at current position
-                        if (currentWordIndex + pattern.length <= lowercaseWord.length &&
-                            lowercaseWord.substring(currentWordIndex, currentWordIndex + pattern.length) === pattern) {
-
-                            result.push({
-                                letters: pattern,
-                                startIndex: currentWordIndex,
-                                endIndex: currentWordIndex + pattern.length - 1,
-                                phoneme: phonemeSequence,
-                                isMultiPhoneme: true
-                            });
-
-                            currentWordIndex += pattern.length;
-                            i += lookAhead; // Skip phonemes we've consumed
-                            multiPhonemeMatched = true;
-                            break;
-                        }
-                    }
-
-                    if (multiPhonemeMatched) break;
-                }
-            }
-        }
-
-        if (multiPhonemeMatched) continue;
-
-        // If no multi-phoneme pattern matched, process single phoneme
-        const currentPhoneme = phonemes[i];
-        const possiblePatterns = phonemeToLetterPatterns[currentPhoneme] || [];
-
-        // Try to match the patterns against the remaining word
+    // Primary alignment pass - try to align patterns
+    while (remainingWord.length > 0 && remainingPhonemes.length > 0) {
         let matched = false;
 
-        // Sort patterns by length (descending) to try longer patterns first
-        const sortedPatterns = [...possiblePatterns].sort((a, b) => b.length - a.length);
+        // Try to match patterns at the current position
+        for (const pattern of commonPatterns) {
+            if (remainingWord.startsWith(pattern.letters) &&
+                pattern.phonemes.length <= remainingPhonemes.length &&
+                pattern.phonemes.every((p, i) => p === remainingPhonemes[i] ||
+                    (p[0] === remainingPhonemes[i][0] &&
+                        p[1] === remainingPhonemes[i][1]))) {
+                // Match vowel stress variations (e.g., AA0, AA1, AA2)
 
-        for (const pattern of sortedPatterns) {
-            // Check if pattern matches at current position
-            if (currentWordIndex + pattern.length <= lowercaseWord.length &&
-                lowercaseWord.substring(currentWordIndex, currentWordIndex + pattern.length) === pattern) {
+                // Add each letter-phoneme pair to the result
+                for (let i = 0; i < pattern.letters.length; i++) {
+                    const phoneIdx = Math.min(i, pattern.phonemes.length - 1);
 
-                result.push({
-                    letters: pattern,
-                    startIndex: currentWordIndex,
-                    endIndex: currentWordIndex + pattern.length - 1,
-                    phoneme: currentPhoneme
-                });
+                    if (i < pattern.phonemes.length || pattern.phonemes.length === 0) {
+                        result.push({
+                            letters: pattern.letters[i],
+                            startIndex: currentWordIndex + i,
+                            endIndex: currentWordIndex + i,
+                            phoneme: i < pattern.phonemes.length ? remainingPhonemes[i] : null,
+                            pattern: pattern.letters
+                        });
+                    } else if (i >= pattern.phonemes.length && pattern.phonemes.length > 0) {
+                        // Excess letters mapped to the last phoneme
+                        result.push({
+                            letters: pattern.letters[i],
+                            startIndex: currentWordIndex + i,
+                            endIndex: currentWordIndex + i,
+                            phoneme: null,
+                            isSilent: true,
+                            pattern: pattern.letters
+                        });
+                    }
+                }
 
-                currentWordIndex += pattern.length;
+                // Consume the pattern
+                remainingWord = remainingWord.slice(pattern.letters.length);
+                remainingPhonemes = remainingPhonemes.slice(pattern.phonemes.length);
+                currentWordIndex += pattern.letters.length;
                 matched = true;
                 break;
             }
         }
 
-        // If no pattern matched, take the next letter and mark as a best guess
+        // If no pattern matched, process one character at a time
         if (!matched) {
-            // Sometimes we need to handle silent letters that appear before phonemes
-            // Common silent patterns like 'k' in 'know', 'gh' in 'right'
-            const silentPatterns = ['gh', 'kn', 'gn', 'ps', 'pn', 'pt', 'wr', 'wh', 'mn'];
-            let silentMatched = false;
-
-            for (const pattern of silentPatterns) {
-                if (currentWordIndex + pattern.length <= lowercaseWord.length &&
-                    lowercaseWord.substring(currentWordIndex, currentWordIndex + pattern.length) === pattern) {
-
-                    // Mark the first character as silent
-                    result.push({
-                        letters: pattern[0],
-                        startIndex: currentWordIndex,
-                        endIndex: currentWordIndex,
-                        phoneme: null,
-                        isSilent: true
-                    });
-
-                    currentWordIndex += 1;
-                    silentMatched = true;
-                    i--; // Try this phoneme again with the next letter
-                    break;
-                }
-            }
-
-            if (silentMatched) {
-                i++;
+            // Check for silent e at end of word
+            if (remainingWord.length === 1 && remainingWord === 'e' && remainingPhonemes.length === 0) {
+                result.push({
+                    letters: 'e',
+                    startIndex: currentWordIndex,
+                    endIndex: currentWordIndex,
+                    phoneme: null,
+                    isSilent: true
+                });
+                remainingWord = '';
+                currentWordIndex++;
                 continue;
             }
 
-            // If we still have letters but no match, take the next letter
-            if (currentWordIndex < lowercaseWord.length) {
-                const nextLetter = lowercaseWord[currentWordIndex];
-                result.push({
-                    letters: nextLetter,
-                    startIndex: currentWordIndex,
-                    endIndex: currentWordIndex,
-                    phoneme: currentPhoneme,
-                    isGuess: true
-                });
-                currentWordIndex++;
-            } else {
-                // No more letters but we still have phonemes (rare cases)
-                result.push({
-                    letters: '',
-                    startIndex: Math.max(0, currentWordIndex - 1),
-                    endIndex: Math.max(0, currentWordIndex - 1),
-                    phoneme: currentPhoneme,
-                    isMissing: true
-                });
-            }
-        }
+            // Handle single character
+            result.push({
+                letters: remainingWord[0],
+                startIndex: currentWordIndex,
+                endIndex: currentWordIndex,
+                phoneme: remainingPhonemes.length > 0 ? remainingPhonemes[0] : null,
+                isGuess: true
+            });
 
-        i++;
+            remainingWord = remainingWord.slice(1);
+            if (remainingPhonemes.length > 0) {
+                remainingPhonemes = remainingPhonemes.slice(1);
+            }
+            currentWordIndex++;
+        }
     }
 
     // Handle any remaining letters (likely silent)
-    while (currentWordIndex < lowercaseWord.length) {
+    while (remainingWord.length > 0) {
         result.push({
-            letters: lowercaseWord[currentWordIndex],
+            letters: remainingWord[0],
             startIndex: currentWordIndex,
             endIndex: currentWordIndex,
             phoneme: null,
             isSilent: true
         });
+        remainingWord = remainingWord.slice(1);
         currentWordIndex++;
+    }
+
+    // Handle any remaining phonemes (rare - might be missing letters)
+    while (remainingPhonemes.length > 0) {
+        result.push({
+            letters: '',
+            startIndex: currentWordIndex > 0 ? currentWordIndex - 1 : 0,
+            endIndex: currentWordIndex > 0 ? currentWordIndex - 1 : 0,
+            phoneme: remainingPhonemes[0],
+            isMissing: true
+        });
+        remainingPhonemes = remainingPhonemes.slice(1);
     }
 
     return result;
@@ -500,9 +465,9 @@ function isNgDigraphImproved(word, position, pronunciation, alignment) {
 
     // First, check if there's a direct 'ng' entry at this position
     for (const entry of alignment) {
-        if (entry.startIndex === position && entry.letters.includes('ng')) {
+        if (entry.startIndex === position) {
             // It's a digraph if it maps to a single NG phoneme
-            return true;
+            return entry.phoneme && entry.phoneme.startsWith('NG');
         }
     }
 
@@ -910,10 +875,12 @@ function transcribeToTengwar(text) {
     // Get pronunciation
     const pronunciation = getPronunciation(processedText);
     const alignment = alignLettersToPhonemes(processedText, pronunciation);
+    console.log(pronunciation, alignment);
 
     const result = [];
     let i = 0;
-    let vowel = '';
+    let vowelOnTop = null;
+    let vowelBelow = null;
 
     while (i < processedText.length) {
         const char = processedText[i].toLowerCase();
@@ -924,7 +891,7 @@ function transcribeToTengwar(text) {
             const charsToSkip = handleDiphthong(processedText, i, result);
             if (charsToSkip > 0) {
                 i += charsToSkip;
-                vowel = ''; // Reset vowel since we've handled it
+                vowelOnTop = null; // Reset vowel since we've handled it
                 found = true;
                 continue;
             }
@@ -962,98 +929,112 @@ function transcribeToTengwar(text) {
         }
 
         if (!found) {
-            switch (char) {
-                case 'a': case 'e': case 'i': case 'o': case 'u':
-                    if (vowel !== '') {
-                        result.push(tengwarMap['telco']);
-                        result.push(vowel);
-                        vowel = '';
-                    }
-                    vowel = englishToTengwar[char].tehta;
-                    i++;
-                    continue;
-                case 'c':
-                    // Use improved soft c detection
-                    if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
-                        // Soft c: use silmenuquerna
-                        result.push(tengwarMap['silmenuquerna']);
-                    } else {
-                        // Hard c: use quesse
-                        result.push(englishToTengwar['c'].char);
-                    }
-                    i++;
-                    break;
-                case 'y':
-                    // Use improved consonantal y detection
-                    if (isConsonantYImproved(processedText, i, pronunciation)) {
-                        result.push(englishToTengwar['y'].char);
-                        i++;
-                    } else {
-                        // Use improved vowel y type detection
-                        const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
-                        if (vowel !== '') {
+            if (i > 0 && (processedText[i] === processedText[i - 1] ||
+                processedText[i] === 'k' && processedText[i - 1] === 'c')) {
+                result.push(tengwarMap['doubler']);
+                i++;
+            } else {
+                switch (char) {
+                    case 'a':
+                    case 'e':
+                    case 'i':
+                    case 'o':
+                    case 'u':
+                        if (vowelOnTop) {
                             result.push(tengwarMap['telco']);
-                            result.push(vowel);
-                            vowel = '';
+                            result.push(vowelOnTop);
+                            vowelOnTop = null;
                         }
-                        if (yType === 'long') {
-                            vowel = tengwarMap['caron'];
-                        } else {
-                            vowel = tengwarMap['two-dots-below'];
-                        }
+                        vowelOnTop = englishToTengwar[char].tehta;
                         i++;
                         continue;
-                    }
-                    break;
-                case 'r':
-                    // Use improved hard r detection
-                    if (isHardRImproved(processedText, i, pronunciation, alignment)) {
-                        result.push(tengwarMap['oore']);
-                    } else {
-                        result.push(englishToTengwar['r'].char);
-                    }
-                    i++;
-                    break;
-                case 's':
-                    if (isHardS(processedText, i, pronunciation, alignment)) {
-                        result.push(englishToTengwar['z'].char);
-                    } else {
-                        result.push(englishToTengwar['s'].char);
-                    }
-                    i++;
-                    break;
-                default:
-                    if (i > 0 && (processedText[i] === processedText[i - 1] ||
-                        processedText[i] === 'k' && processedText[i - 1] === 'c')) {
-                        result.push(tengwarMap['doubler']);
+                    case 'c':
+                        // Use improved soft c detection
+                        if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
+                            // Soft c: use silmenuquerna
+                            result.push(tengwarMap['silmenuquerna']);
+                        } else {
+                            // Hard c: use quesse
+                            result.push(englishToTengwar['c'].char);
+                        }
                         i++;
-                    } else if (englishToTengwar[char] && englishToTengwar[char].char) {
-                        result.push(englishToTengwar[char].char);
+                        break;
+                    case 'y':
+                        // Use improved consonantal y detection
+                        if (isConsonantYImproved(processedText, i, pronunciation)) {
+                            result.push(englishToTengwar['y'].char);
+                            i++;
+                        } else {
+                            // Use improved vowel y type detection
+                            const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
+                            if (vowelOnTop) {
+                                result.push(tengwarMap['telco']);
+                                result.push(vowelOnTop);
+                                vowelOnTop = null;
+                            }
+                            if (yType === 'long') {
+                                vowelOnTop = tengwarMap['caron'];
+                                i++;
+                                continue;
+                            } else {
+                                vowelBelow = tengwarMap['two-dots-below'];
+                            }
+                            i++;
+                        }
+                        break;
+                    case 'r':
+                        // Use improved hard r detection
+                        if (isHardRImproved(processedText, i, pronunciation, alignment)) {
+                            result.push(tengwarMap['oore']);
+                        } else {
+                            result.push(englishToTengwar['r'].char);
+                        }
                         i++;
-                    } else {
-                        result.push(char);
+                        break;
+                    case 's':
+                        if (isHardS(processedText, i, pronunciation, alignment)) {
+                            result.push(englishToTengwar['z'].char);
+                        } else {
+                            result.push(englishToTengwar['s'].char);
+                        }
                         i++;
-                    }
+                        break;
+                    default:
+                        if (englishToTengwar[char] && englishToTengwar[char].char) {
+                            result.push(englishToTengwar[char].char);
+                            i++;
+                        } else {
+                            result.push(char);
+                            i++;
+                        }
+                }
             }
         }
 
-        if (vowel !== '') { // add the vowel
+        if (vowelOnTop) { // add the vowel
             if (i === 0 || !englishToTengwar[processedText[i - 1].toLowerCase()].char) { // add carrier if previous was also a vowel
                 result.push(tengwarMap['telco']);
             }
-            result.push(vowel);
-            vowel = '';
+            result.push(vowelOnTop);
+            vowelOnTop = null;
+        }
+        if (vowelBelow) {
+            result.push(vowelBelow);
+            vowelBelow = null;
         }
     }
 
     // Handle silent e at the end of words
     if (hasSilentEImproved(processedText, pronunciation)) {
         result.push(tengwarMap['dot-below']);
-    } else if (vowel !== '') {
-        if (vowel !== tengwarMap['two-dots-below']) { // no carrier for y
+    } else if (vowelOnTop) {
+        if (vowelOnTop !== tengwarMap['two-dots-below']) { // no carrier for y
             result.push(tengwarMap['telco']);
         }
-        result.push(vowel);
+        result.push(vowelOnTop);
+    }
+    if (vowelBelow) {
+        result.push(vowelBelow);
     }
 
     return result.join('');
