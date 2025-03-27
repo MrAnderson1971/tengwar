@@ -863,7 +863,69 @@ function handleDiphthong(word, position, result) {
     }
 }
 
-// Update the main transcribeToTengwar function to use the improved disambiguation methods
+// New function to detect silent 'e' in the middle of words
+function isSilentEInMiddle(word, position, pronunciation, alignment) {
+    // Check if the letter is actually an 'e'
+    if (word[position].toLowerCase() !== 'e') {
+        return false;
+    }
+
+    // If it's at the end, don't process here (use the existing function)
+    if (position === word.length - 1) {
+        return false;
+    }
+
+    // Use pronunciation data if available
+    if (pronunciation && alignment) {
+        for (const entry of alignment) {
+            if (entry.startIndex === position && entry.letters === 'e') {
+                // If it has no phoneme or is marked as silent, it's silent
+                if (!entry.phoneme || entry.isSilent) {
+                    return true;
+                }
+
+                // Check if 'e' is mapped to a consonant phoneme (which suggests it's silent or schwa)
+                // Vowel phonemes in CMU dict start with: AA, AE, AH, AO, AW, AY, EH, ER, EY, IH, IY, OW, OY, UH, UW
+                // If 'e' is mapped to anything else, it's likely silent or part of another sound
+                const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
+                if (entry.phoneme && !vowelPhonemePatterns.test(entry.phoneme)) {
+                    return true;
+                }
+
+                // Also check if the phoneme assignment looks suspicious
+                // (e.g., an 'e' shouldn't be mapped to an 'M' or 'N' phoneme)
+                if (entry.phoneme && /^[BCDFGHJKLMNPQRSTVWXZ]/.test(entry.phoneme)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Common patterns for silent 'e' in the middle of words
+
+    // 1. In English, 'e' is often silent in the pattern 'Consonant + ate + m'
+    // This catches words like 'statement', 'statecraft', etc.
+    if (position > 1 && position < word.length - 1 &&
+        position + 1 < word.length &&
+        word[position - 1].toLowerCase() === 't' &&
+        word[position - 2].toLowerCase() === 'a' &&
+        word[position + 1].toLowerCase() === 'm') {
+        return true;
+    }
+
+    // 2. The 'e' in '-ment' suffix is often silent
+    if (position > 0 && position < word.length - 2 &&
+        word.substring(position - 1, position + 3).toLowerCase() === 'ment') {
+        return true;
+    }
+
+    // 3. The 'e' in '-able', '-ible' suffixes is often silent
+    return position > 0 && position < word.length - 3 &&
+        (word.substring(position - 1, position + 4).toLowerCase() === 'able' ||
+            word.substring(position - 1, position + 4).toLowerCase() === 'ible');
+}
+
+// Update the transcribeToTengwar function by modifying the handling of 'e'
 function transcribeToTengwar(text) {
     const lowerText = text.toLowerCase();
     if (specialWords[lowerText]) {
@@ -880,7 +942,6 @@ function transcribeToTengwar(text) {
     const result = [];
     let i = 0;
     let vowelOnTop = null;
-    let vowelBelow = null;
 
     while (i < processedText.length) {
         const char = processedText[i].toLowerCase();
@@ -936,10 +997,26 @@ function transcribeToTengwar(text) {
             } else {
                 switch (char) {
                     case 'a':
-                    case 'e':
                     case 'i':
                     case 'o':
                     case 'u':
+                        if (vowelOnTop) {
+                            result.push(tengwarMap['telco']);
+                            result.push(vowelOnTop);
+                            vowelOnTop = null;
+                        }
+                        vowelOnTop = englishToTengwar[char].tehta;
+                        i++;
+                        continue;
+                    case 'e':
+                        // Check if this 'e' is silent in the middle of the word
+                        if (i < processedText.length - 1 && isSilentEInMiddle(processedText, i, pronunciation, alignment)) {
+                            // For silent 'e' in the middle of a word, add a dot-below
+                            result.push(tengwarMap['dot-below']);
+                            i++;
+                            break;
+                        }
+                        // Otherwise, treat as a normal vowel
                         if (vowelOnTop) {
                             result.push(tengwarMap['telco']);
                             result.push(vowelOnTop);
@@ -977,7 +1054,7 @@ function transcribeToTengwar(text) {
                                 i++;
                                 continue;
                             } else {
-                                vowelBelow = tengwarMap['two-dots-below'];
+                                result.push(tengwarMap['two-dots-below']);
                             }
                             i++;
                         }
@@ -1018,10 +1095,6 @@ function transcribeToTengwar(text) {
             result.push(vowelOnTop);
             vowelOnTop = null;
         }
-        if (vowelBelow) {
-            result.push(vowelBelow);
-            vowelBelow = null;
-        }
     }
 
     // Handle silent e at the end of words
@@ -1032,9 +1105,6 @@ function transcribeToTengwar(text) {
             result.push(tengwarMap['telco']);
         }
         result.push(vowelOnTop);
-    }
-    if (vowelBelow) {
-        result.push(vowelBelow);
     }
 
     return result.join('');
