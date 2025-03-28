@@ -677,6 +677,7 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
     const commonDiphthongs = [
         'ae', 'ai', 'ay', 'au', 'aw',
         'ea', 'ee', 'ei', 'ey',
+        'ie',
         'oa', 'oi', 'oy',
         'ou', 'ow',
         'ue'
