@@ -7,17 +7,6 @@ import {alignLettersToPhonemes} from "./align";
 let tengwarEnabled = false;
 let fontInjected = false;
 
-// Check tengwar status when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], (data) => {
-        if (data.tengwarEnabled) {
-            tengwarEnabled = true;
-            injectTengwarFont(data.tengwarFont || 'annatar');
-            processPage();
-        }
-    });
-});
-
 // Listen for messages from popup.js
 chrome.runtime.onMessage.addListener(function (request) {
     if (request.action === 'updateTengwarStatus') {

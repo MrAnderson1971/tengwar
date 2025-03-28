@@ -2,24 +2,46 @@ document.addEventListener('DOMContentLoaded', function () {
     const checkbox = document.getElementById('tengwarEnabled');
     const fontSelect = document.getElementById('tengwarFont');
 
-    chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
-        checkbox.checked = data.tengwarEnabled || false;
-        fontSelect.value = data.tengwarFont;
-    });
+    // Get the current tab to determine the current domain
+    chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
+        if (tabs[0]) {
+            const url = new URL(tabs[0].url);
+            const domain = url.hostname;
 
-    // Toggle Tengwar conversion on checkbox change
-    checkbox.addEventListener('change', function () {
-        chrome.storage.sync.set({tengwarEnabled: checkbox.checked});
+            // Load current settings
+            chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data) {
+                const enabledDomains = data.tengwarEnabledDomains || [];
+                console.log(enabledDomains);
+                checkbox.checked = enabledDomains.includes(domain);
+                fontSelect.value = data.tengwarFont || 'annatar';
+            });
 
-        // Send message to active tab to update transcription status
-        chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
-            if (tabs[0]) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: 'updateTengwarStatus',
-                    enabled: checkbox.checked
+            // Toggle Tengwar conversion on checkbox change
+            checkbox.addEventListener('change', function () {
+                chrome.storage.sync.get('tengwarEnabledDomains', function (data) {
+                    let enabledDomains = data.tengwarEnabledDomains || [];
+
+                    if (checkbox.checked && !enabledDomains.includes(domain)) {
+                        // Add current domain to enabled list
+                        enabledDomains.push(domain);
+                    } else if (!checkbox.checked && enabledDomains.includes(domain)) {
+                        // Remove current domain from enabled list
+                        enabledDomains = enabledDomains.filter(d => d !== domain);
+                    }
+
+                    // Save the updated list
+                    chrome.storage.sync.set({tengwarEnabledDomains: enabledDomains});
+
+                    // Send message to active tab to update transcription status
+                    if (tabs[0]) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'updateTengwarStatus',
+                            enabled: checkbox.checked
+                        });
+                    }
                 });
-            }
-        });
+            });
+        }
     });
 
     // Handle font selection change
