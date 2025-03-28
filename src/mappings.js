@@ -126,32 +126,6 @@ export const specialWords = {
     'tengwar': tengwarMap['tinco'] + tengwarMap['nwalme'] + tengwarMap['acute'] + tengwarMap['vala'] + tengwarMap['oore'] + tengwarMap['three-dots'],
 };
 
-// Special multi-phoneme patterns (handling sounds that span multiple phonemes)
-export const multiPhonemePatterns = {
-    'EH1 R': ['air', 'are', 'ear', 'ere', 'eir', 'ar'],
-    'EH0 R': ['air', 'are', 'ear', 'ere', 'eir', 'ar'],
-    'EH2 R': ['air', 'are', 'ear', 'ere', 'eir', 'ar'],
-    'AO1 R': ['or', 'ore', 'oor', 'our', 'oar'],
-    'AO0 R': ['or', 'ore', 'oor', 'our', 'oar'],
-    'AO2 R': ['or', 'ore', 'oor', 'our', 'oar'],
-    'ER0': ['er', 'ir', 'ur', 'ear', 'or'],
-    'ER1': ['er', 'ir', 'ur', 'ear', 'or'],
-    'ER2': ['er', 'ir', 'ur', 'ear', 'or'],
-    'IH0 R': ['eer', 'ear', 'ere', 'ir', 'ier'],
-    'IH1 R': ['eer', 'ear', 'ere', 'ir', 'ier'],
-    'IH2 R': ['eer', 'ear', 'ere', 'ir', 'ier'],
-    'UH0 R': ['oor', 'our', 'ur'],
-    'UH1 R': ['oor', 'our', 'ur'],
-    'UH2 R': ['oor', 'our', 'ur'],
-    'AY1 R': ['ire', 'ier', 'iar'],
-    'AY0 R': ['ire', 'ier', 'iar'],
-    'AY2 R': ['ire', 'ier', 'iar'],
-    'AW1 R': ['our', 'ower'],
-    'AW0 R': ['our', 'ower'],
-    'AW2 R': ['our', 'ower'],
-    'K S': ['x']
-};
-
 // Individual phoneme patterns
 export const phonemeToLetterPatterns = {
     // Vowel phonemes
@@ -195,27 +169,6 @@ export const phonemeToLetterPatterns = {
     'Y': ['y', 'i', 'j'],
     'Z': ['z', 's', 'zz', 'x', 'ss'],
     'ZH': ['s', 'z', 'g']
-};
-
-// Add common suffixes to the multi-phoneme patterns
-export const commonSuffixes = {
-    'IH0 NG': ['ing'],
-    'AH0 NG': ['ung'],
-    'IY0 NG': ['eeing'],
-    'EH0 D': ['ed'],
-    'D': ['ed', 'd'],
-    'T': ['ed', 't'],
-    'AH0 L': ['le'],
-    'AH0 L IY0': ['ally', 'aly'],
-    'L IY0': ['ly', 'ley', 'li'],
-    'F AH0 L': ['ful'],
-    'M AH0 N T': ['ment'],
-    'N AH0 S': ['ness', 'nes'],
-    'AH0 B AH0 L': ['able'],
-    'IH0 B AH0 L': ['ible'],
-    'SH AH0 N': ['tion', 'sion', 'cion'],
-    'Z': ['s'],
-    'S': ['s', 'ce', 'se']
 };
 
 // Set up common English spelling patterns with their typical phoneme sequences
@@ -307,4 +260,14 @@ export const vowelPhonemes = [
     "OY", "OY0", "OY1", "OY2",
     "UH", "UH0", "UH1", "UH2",
     "UW", "UW0", "UW1", "UW2"
+];
+
+// Fallback to known common diphthong letter pairs (O(1))
+export const commonDiphthongs = [
+    'ae', 'ai', 'ay', 'au', 'aw',
+    'ea', 'ee', 'ei', 'ey',
+    'ie',
+    'oa', 'oi', 'oy',
+    'ou', 'ow',
+    'ue'
 ];

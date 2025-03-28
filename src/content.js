@@ -1,6 +1,13 @@
 // Import the pronunciation library (only used for certain cases)
 import {dictionary} from 'cmu-pronouncing-dictionary';
-import {englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns, vowelPhonemes} from "./mappings";
+import {
+    commonDiphthongs,
+    englishToTengwar,
+    specialWords,
+    tengwarMap,
+    vowelPhonemePatterns,
+    vowelPhonemes
+} from "./mappings";
 import {alignLettersToPhonemes} from "./align";
 
 // Track if Tengwar is currently enabled
@@ -667,15 +674,6 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
         }
     }
 
-    // Fallback to known common diphthong letter pairs (O(1))
-    const commonDiphthongs = [
-        'ae', 'ai', 'ay', 'au', 'aw',
-        'ea', 'ee', 'ei', 'ey',
-        'ie',
-        'oa', 'oi', 'oy',
-        'ou', 'ow',
-        'ue'
-    ];
     return commonDiphthongs.includes(possibleDiphthong);
 }
 

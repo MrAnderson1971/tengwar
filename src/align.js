@@ -98,6 +98,15 @@ export function alignLettersToPhonemes(word, pronunciation) { // Restored origin
 
                 // Check if the pattern fits within the current indices
                 if (i >= p_len_l && j >= p_len_p && p_len_l > 0) { // Ensure pattern has letters
+                    // Special case for the "ed" pattern when it's being used as a past tense suffix
+                    // If the "ed" pattern has single phoneme ['D'] or ['T'] and it's not at the end of a word, skip it
+                    if (p_letters.toLowerCase() === 'ed' &&
+                        p_phonemes.length === 1 &&
+                        (p_phonemes[0] === 'D' || p_phonemes[0] === 'T') &&
+                        i !== N) {
+                        continue; // Skip this pattern if it's not at the end of the word
+                    }
+
                     // Extract substrings/slices to check for match
                     const wordSegment = letters.slice(i - p_len_l, i).join('');
                     const phonemeSegment = phonemes.slice(j - p_len_p, j);
@@ -157,22 +166,25 @@ export function alignLettersToPhonemes(word, pronunciation) { // Restored origin
             // Store results for dp[i][j]
             dp[i][j] = maxScore;
             // Ensure ptr[i][j] is assigned a valid pointer type
-            if (bestPtr === PTR_PATTERN) {
-                ptr[i][j] = {type: PTR_PATTERN, info: patternInfo};
-            } else if (bestPtr === PTR_DIAGONAL) {
-                ptr[i][j] = {type: PTR_DIAGONAL};
-            } else if (bestPtr === PTR_UP) {
-                ptr[i][j] = {type: PTR_UP};
-            } else if (bestPtr === PTR_LEFT) {
-                ptr[i][j] = {type: PTR_LEFT};
-            } else {
-                // Should not happen if initialization is correct, but as a fallback
-                console.warn("No valid pointer found for dp[", i, "][", j, "]");
-                // Default to diagonal as a guess, or handle error
-                ptr[i][j] = {type: PTR_DIAGONAL};
+            switch (bestPtr) {
+                case PTR_PATTERN:
+                    ptr[i][j] = {type: PTR_PATTERN, info: patternInfo};
+                    break;
+                case PTR_DIAGONAL:
+                    ptr[i][j] = {type: PTR_DIAGONAL};
+                    break;
+                case PTR_UP:
+                    ptr[i][j] = {type: PTR_UP};
+                    break;
+                case PTR_LEFT:
+                    ptr[i][j] = {type: PTR_LEFT};
+                    break;
+                default:
+                    // Should not happen if initialization is correct, but as a fallback
+                    console.warn("No valid pointer found for dp[", i, "][", j, "]");
+                    // Default to diagonal as a guess, or handle error
+                    ptr[i][j] = {type: PTR_DIAGONAL};
             }
-
-
         } // end for j
     } // end for i
 
