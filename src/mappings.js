@@ -79,6 +79,7 @@ export const englishToTengwar = {
     'p': {char: tengwarMap['parma']},
     'c': {char: tengwarMap['quesse']}, // Default to hard c; disambiguation will occur below
     'nch': {char: tengwarMap['nuumen'] + tengwarMap['calma']}, // handle this case separately
+    'nth': {char: tengwarMap['nuumen'] + tengwarMap['thuule']},
     'ch': {char: tengwarMap['calma']},
     'k': {char: tengwarMap['quesse']},
     'q': {char: tengwarMap['quesse']},
