@@ -580,6 +580,11 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
     // Use pronunciation data if available
     if (pronunciation && alignmentEntry) {
         if (alignmentEntry.letters === 'e' || alignmentEntry.letters === 'E') {
+            // ER is not silent
+            if (alignmentByIndex[position + 1].phoneme && alignmentByIndex[position + 1].phoneme.includes('R')) {
+                return false;
+            }
+
             // If it has no phoneme or is marked as silent, it's silent
             if (!alignmentEntry.phoneme || alignmentEntry.isSilent) {
                 return true;
