@@ -843,8 +843,15 @@ function transcribeToTengwar(text) {
         }
 
         if (!found) {
+            /*
+            Not a vowel
+            CK
+            If both are C both pronunciations match
+            */
             if (!'aeiou'.includes(processedText[i]) && i > 0 && (processedText[i] === processedText[i - 1] ||
-                processedText[i] === 'k' && processedText[i - 1] === 'c')) {
+                processedText[i] === 'k' && processedText[i - 1] === 'c') &&
+            !(processedText[i] === 'c' && processedText[i - 1] === 'c' &&
+                isSoftCImproved(processedText, i, pronunciation, alignment) !== isSoftCImproved(processedText, i - 1, pronunciation, alignment))) {
                 result.push(tengwarMap['doubler']);
                 i++;
             } else {
