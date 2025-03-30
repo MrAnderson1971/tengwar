@@ -832,6 +832,9 @@ function transcribeToTengwar(text) {
                     if (ngram === 'nt' && i + 2 < processedText.length && processedText[i + 2] === 'h') { // nth case
                         break;
                     }
+                    if (ngram === 'mp' && i + 2 < processedText.length && processedText[i + 2] === 'h') { // mph case
+                        break;
+                    }
                     result.push(englishToTengwar[ngram].char);
                     i += len;
                     found = true;
