@@ -1,21 +1,23 @@
 // This function aligns CMU dictionary phonemes with English spelling
-import {commonPatterns, phonemeToLetterPatterns} from "./mappings";
+import {commonPatterns, phonemeToLetterPatterns, vowelPhonemes} from "./mappings";
 
 const MATCH_SCORE = 2;       // Score for a likely letter-phoneme match
 const MISMATCH_SCORE = -1;   // Penalty for an unlikely letter-phoneme mismatch
 const GAP_PENALTY = -1;      // Penalty for inserting a gap (silent letter or multi-letter sound)
+const VOWEL_GAP_PENALTY = -1.5; // Higher penalty for making vowels silent
 // Bonus for matching a pre-defined multi-character pattern (higher score encourages using known patterns)
 // Make it dependent on pattern length to prioritize longer, more specific patterns.
-const PATTERN_MATCH_BASE_BONUS = 3; // Base bonus
-const PATTERN_MATCH_LEN_BONUS = 1; // Additional bonus per character in the pattern
+const PATTERN_MATCH_BASE_BONUS = 2.5; // Base bonus (reduced from 3)
+const PATTERN_MATCH_LEN_BONUS = 0.8; // Additional bonus per character in the pattern (reduced from 1)
 // --- DP Pointer Constants ---
 const PTR_DIAGONAL = 1; // Match/Mismatch
 const PTR_UP = 2;       // Gap in Phonemes (delete letter)
 const PTR_LEFT = 3;     // Gap in Letters (insert phoneme)
 const PTR_PATTERN = 4;  // Matched a commonPattern
+
 /**
- * Basic scoring function for aligning a single letter and a single phoneme.
- * Considers phonemeToLetterPatterns for matches.
+ * Modified scoring function for aligning a single letter and a single phoneme.
+ * Considers phonemeToLetterPatterns for matches with improved vowel handling.
  */
 function getSingleScore(letter, phoneme) {
     if (!letter || !phoneme) {
@@ -25,6 +27,10 @@ function getSingleScore(letter, phoneme) {
 
     // Check if this letter is a common representation for this phoneme
     if (phonemeToLetterPatterns[basePhoneme] && phonemeToLetterPatterns[basePhoneme].includes(letter.toLowerCase())) {
+        // Give higher score for vowel matches to prioritize them
+        if (vowelPhonemes.includes(basePhoneme) && "aeiou".includes(letter.toLowerCase())) {
+            return MATCH_SCORE + 1.5; // Boost vowel matches significantly
+        }
         return MATCH_SCORE;
     }
 
@@ -35,11 +41,12 @@ function getSingleScore(letter, phoneme) {
     if (letter === 'c' && basePhoneme === 'S') return MATCH_SCORE - 1; // Less likely than 's' but possible soft C
     if (letter === 'z' && basePhoneme === 'Z') return MATCH_SCORE;
     if (letter === 's' && basePhoneme === 'Z') return MATCH_SCORE - 1; // Less likely than 'z'
+
     // Basic vowel check (less reliable, but better than nothing)
     const vowels = "aeiou";
-    const vowelPhonemes = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
-    if (vowels.includes(letter.toLowerCase()) && vowelPhonemes.test(basePhoneme)) {
-        return MATCH_SCORE / 2; // Lower score for generic vowel match
+    const vowelPhonemePattern = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
+    if (vowels.includes(letter.toLowerCase()) && vowelPhonemePattern.test(basePhoneme)) {
+        return MATCH_SCORE - 0.5; // Improved score for generic vowel match
     }
 
     return MISMATCH_SCORE;
@@ -53,7 +60,7 @@ function getSingleScore(letter, phoneme) {
  * @returns {Array|null} An array of alignment objects or null if inputs are invalid.
  *                       [{ letters: string, startIndex: int, endIndex: int, phoneme: string|null, isSilent: bool, pattern?: string }, ...]
  */
-export function alignLettersToPhonemes(word, pronunciation) { // Restored original function name
+export function alignLettersToPhonemes(word, pronunciation) {
     if (!word || !pronunciation) {
         return null;
     }
@@ -72,11 +79,11 @@ export function alignLettersToPhonemes(word, pronunciation) { // Restored origin
     dp[0][0] = 0;
     for (let i = 1; i <= N; i++) {
         dp[i][0] = dp[i - 1][0] + GAP_PENALTY; // Aligning letters with gaps
-        ptr[i][0] = PTR_UP;
+        ptr[i][0] = {type: PTR_UP};
     }
     for (let j = 1; j <= M; j++) {
         dp[0][j] = dp[0][j - 1] + GAP_PENALTY; // Aligning phonemes with gaps
-        ptr[0][j] = PTR_LEFT;
+        ptr[0][j] = {type: PTR_LEFT};
     }
 
     // --- Fill DP Table ---
@@ -144,7 +151,11 @@ export function alignLettersToPhonemes(word, pronunciation) { // Restored origin
             }
 
             // Up: Gap in phonemes (letter[i-1] is silent or part of multi-letter sound)
-            const scoreUp = dp[i - 1][j] + GAP_PENALTY;
+            // Apply higher penalty for vowels being silent
+            const isVowel = "aeiou".includes(letters[i - 1].toLowerCase());
+            const gapPenalty = isVowel ? VOWEL_GAP_PENALTY : GAP_PENALTY;
+            const scoreUp = dp[i - 1][j] + gapPenalty;
+
             if (scoreUp >= maxScore) { // Use >=
                 if (scoreUp > maxScore || (bestPtr !== PTR_PATTERN && bestPtr !== PTR_DIAGONAL)) {
                     maxScore = scoreUp;
@@ -154,7 +165,11 @@ export function alignLettersToPhonemes(word, pronunciation) { // Restored origin
             }
 
             // Left: Gap in letters (phoneme[j-1] spans multiple letters or missing letter)
-            const scoreLeft = dp[i][j - 1] + GAP_PENALTY;
+            // Apply higher penalty for vowel phonemes with missing letters
+            const isVowelPhoneme = phonemes[j - 1].match(/^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)[0-9]?/);
+            const phonemeGapPenalty = isVowelPhoneme ? VOWEL_GAP_PENALTY : GAP_PENALTY;
+            const scoreLeft = dp[i][j - 1] + phonemeGapPenalty;
+
             if (scoreLeft >= maxScore) { // Use >=
                 if (scoreLeft > maxScore || (bestPtr !== PTR_PATTERN && bestPtr !== PTR_DIAGONAL && bestPtr !== PTR_UP)) {
                     maxScore = scoreLeft;

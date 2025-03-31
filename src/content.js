@@ -796,7 +796,7 @@ function transcribeToTengwar(text) {
         let found = false;
 
         // Check for diphthongs
-        if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation)) {
+        if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation, alignment)) {
             const charsToSkip = handleDiphthong(processedText, i, result);
             if (charsToSkip > 0) {
                 i += charsToSkip;
