@@ -13,24 +13,50 @@ import {alignLettersToPhonemes} from "./align";
 // Track if Tengwar is currently enabled
 let tengwarEnabled = false;
 let fontInjected = false;
+let currentFont = 'annatar';
 
 // Listen for messages from popup.js
-chrome.runtime.onMessage.addListener(function (request) {
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    // --- THIS LISTENER REMAINS LARGELY THE SAME ---
+    // It handles messages *after* initialization or user interaction
     if (request.action === 'updateTengwarStatus') {
-        if (request.enabled && !tengwarEnabled) {
-            tengwarEnabled = true;
-            injectTengwarFont();
-            processPage();
-        } else if (!request.enabled && tengwarEnabled) {
-            // Reload the page to restore original text
-            window.location.reload();
-        }
-    }
-});
+        // Status update FROM background/popup (e.g., tab update or popup interaction)
+        const shouldBeEnabled = request.enabled;
+        const newFont = request.font || currentFont; // Use font from message or current
 
-chrome.runtime.onMessage.addListener(function (request) {
-    if (request.action === 'updateTengwarFont') {
-        updateTengwarFont(request.font);
+        if (shouldBeEnabled && !tengwarEnabled) {
+            // Enable transcription
+            tengwarEnabled = true;
+            currentFont = newFont;
+            injectTengwarFont(currentFont); // Ensure font is injected/updated
+            processPage(); // Process now that it's enabled
+        } else if (!shouldBeEnabled && tengwarEnabled) {
+            // Disable transcription - reload to revert simply
+            window.location.reload();
+        } else if (shouldBeEnabled && tengwarEnabled && newFont !== currentFont) {
+            // Already enabled, but font changed via background message
+            updateTengwarFont(newFont);
+        } else if (shouldBeEnabled && tengwarEnabled) {
+            // If it's already enabled and status update confirms enabled,
+            // ensure observer is running (might be needed if navigation happened weirdly)
+            setupMutationObserver();
+        }
+        // If shouldBeEnabled === tengwarEnabled and font is the same, do nothing.
+    } else if (request.action === 'updateTengwarFont') {
+        // Font update specifically FROM popup
+        const newFont = request.font || 'annatar';
+        if (tengwarEnabled) { // Only apply if currently enabled
+            updateTengwarFont(newFont);
+        } else {
+            // Store font preference even if not enabled now,
+            // so it's used if enabled later.
+            currentFont = newFont;
+            // Update the font definition even if not processing,
+            // so it's ready if activated.
+            if (fontInjected) {
+                updateTengwarFont(newFont); // Update the @font-face rule
+            }
+        }
     }
 });
 
@@ -40,6 +66,7 @@ function updateTengwarFont(fontName) {
         fontName = 'annatar'; // Default to Annatar if invalid
     }
 
+    currentFont = fontName;
     const styleEl = document.getElementById('tengwar-font-style');
 
     if (styleEl) {
@@ -107,6 +134,7 @@ function processPage() {
         return;
     }
 
+    injectTengwarFont(currentFont);
     // Process initial content
     processContent(document.body);
 
@@ -119,29 +147,23 @@ function processContent(container) {
     if (!container || isElementToSkip(container)) {
         return;
     }
-
-    // Get all text nodes within the container
     const textNodes = [];
     const walker = document.createTreeWalker(
         container,
         NodeFilter.SHOW_TEXT,
         {
             acceptNode: function (node) {
-                if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
+                if (!node.nodeValue.trim() || isElementToSkip(node.parentElement) || !node.parentElement.offsetParent) {
                     return NodeFilter.FILTER_REJECT;
                 }
                 return NodeFilter.FILTER_ACCEPT;
             }
         }
     );
-
     let node;
-    // Gather all nodes first to avoid DOM modification during traversal
     while ((node = walker.nextNode())) {
         textNodes.push(node);
     }
-
-    // Process each node
     textNodes.forEach(processTextNode);
 }
 
@@ -981,3 +1003,68 @@ chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
         processPage();
     }
 });
+
+function initializeTengwar() {
+    // Prevent running on frames like ads?
+    // if (window.self !== window.top) {
+    //     console.log("Tengwar skipping non-top frame:", window.location.href);
+    //     return;
+    // }
+    try {
+        // Ensure runs only once
+        if (window.tengwarInitialized) return;
+        window.tengwarInitialized = true;
+
+        const currentDomain = window.location.hostname;
+        // Exclude empty domains (e.g., about:blank, initial empty tabs)
+        if (!currentDomain) {
+            console.log("Tengwar skipping page with no domain.");
+            return;
+        }
+
+        chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data) {
+            if (chrome.runtime.lastError) {
+                console.error("Error getting storage:", chrome.runtime.lastError);
+                return;
+            }
+
+            const enabledDomains = data.tengwarEnabledDomains || [];
+            const font = data.tengwarFont || 'annatar';
+            currentFont = font; // Store initially loaded font
+
+            if (enabledDomains.includes(currentDomain)) {
+                console.log(`Tengwar automatically enabled for ${currentDomain}`);
+                tengwarEnabled = true;
+                // Inject font immediately
+                injectTengwarFont(currentFont);
+                // Use requestAnimationFrame to delay processing slightly,
+                // allowing the page layout and styles (like the font) to settle.
+                requestAnimationFrame(() => {
+                    if (document.readyState === 'loading') {
+                        // If DOM is still loading, wait for it
+                        document.addEventListener('DOMContentLoaded', processPage);
+                    } else {
+                        // If DOM is already interactive or complete, process now
+                        processPage();
+                    }
+                });
+            } else {
+                console.log(`Tengwar not enabled for ${currentDomain}`);
+                tengwarEnabled = false;
+                // Ensure observer is stopped if script somehow loads on a disabled page
+                // after being on an enabled one without full reload.
+                if (observer) {
+                    observer.disconnect();
+                    observer = null; // Important to allow setup later if enabled
+                    console.log("MutationObserver disconnected on init (domain disabled).");
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Error during Tengwar initialization:", error);
+        tengwarEnabled = false; // Ensure it's disabled on error
+    }
+}
+
+// Run the initialization logic when the script loads
+initializeTengwar();
