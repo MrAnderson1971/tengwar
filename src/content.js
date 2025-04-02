@@ -219,7 +219,7 @@ function processTextNode(textNode) {
     text = text.replace(/\bof\s+the\b/gi, "ofthe");
 
     // Find all alphabetical words
-    const wordRegex = /[a-zA-Z]+/g;
+    const wordRegex = /\p{L}+/gu;
     let match;
 
     while ((match = wordRegex.exec(text)) !== null) {
@@ -771,6 +771,12 @@ const vowelDiacritics = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarM
 
 const cache = new Map();
 
+function removeDiacritics(str) {
+    return str.normalize('NFD')           // Normalize to decomposed form
+        .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+        .normalize('NFC');          // Normalize back (optional)
+}
+
 // Update the transcribeToTengwar function by modifying the handling of 'e'
 function transcribeToTengwar(text) {
     if (cache.has(text)) {
@@ -781,7 +787,7 @@ function transcribeToTengwar(text) {
         return specialWords[lowerText];
     }
 
-    const processedText = removeSilentLetters(text);
+    const processedText = removeDiacritics(removeSilentLetters(text));
 
     // Get pronunciation
     const pronunciation = getPronunciation(processedText);
