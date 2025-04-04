@@ -57,8 +57,15 @@ function getSingleScore(letter, phoneme) {
  * Incorporates commonPatterns for better multi-character alignment.
  * @param {string} word The word to align.
  * @param {string} pronunciation The CMU dictionary pronunciation (space-separated phonemes).
- * @returns {Array|null} An array of alignment objects or null if inputs are invalid.
- *                       [{ letters: string, startIndex: int, endIndex: int, phoneme: string|null, isSilent: bool, pattern?: string }, ...]
+ * @returns {Array<{
+ *   letters: string,
+ *   startIndex: number,
+ *   endIndex: number,
+ *   phoneme: string|null,
+ *   isSilent: boolean,
+ *   pattern?: string,
+ *   isMissingLetter?: boolean
+ * }>|null} An array of alignment objects or null if inputs are invalid.
  */
 export function alignLettersToPhonemes(word, pronunciation) {
     if (!word || !pronunciation) {

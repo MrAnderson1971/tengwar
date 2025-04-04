@@ -10,13 +10,25 @@ function tengwarToString(...tengwar) {
 }
 
 test("account", () => {
-    expect(transcribeToTengwar("account", true)).toBe(tengwarToString("quesse", "three-dots", "doubler", "vala", "right-curl", "tinco", "nasalizer"));
+    expect(transcribeToTengwar("account")).toBe(tengwarToString("quesse", "three-dots", "doubler", "vala", "right-curl", "tinco", "nasalizer"));
 })
 
 test("build", () => {
-    expect(transcribeToTengwar("build", true)).toBe(tengwarToString("umbar", "anna", "left-curl", "alda"));
+    expect(transcribeToTengwar("build")).toBe(tengwarToString("umbar", "anna", "left-curl", "alda"));
 })
 
 test("café", () => {
-    expect(transcribeToTengwar("café", true)).toBe(tengwarToString("quesse", "formen", "three-dots", "telco", "acute"))
+    expect(transcribeToTengwar("café")).toBe(tengwarToString("quesse", "formen", "three-dots", "telco", "acute"))
+})
+
+test("cake", () => {
+    expect(transcribeToTengwar("cake")).toBe(tengwarToString("quesse", "quesse", "three-dots", "dot-below"))
+})
+
+test("psychology", () => {
+    expect(transcribeToTengwar("psychology")).toBe(tengwarToString("silme", "calma", "caron", "lambe", "right-curl", "ungwe", "right-curl", "two-dots-below"))
+})
+
+test("know", () => {
+    expect(transcribeToTengwar("know")).toBe(tengwarToString("nuumen", "vala", "right-curl"));
 })

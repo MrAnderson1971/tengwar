@@ -222,7 +222,7 @@ function processTextNode(textNode) {
         }
 
         fragments.push({
-            text: transcribeToTengwar(match[0]),
+            text: transcribeToTengwar(match[0], false),
             isTengwar: true,
             original: match[0]
         });

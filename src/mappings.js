@@ -269,5 +269,5 @@ export const commonDiphthongs = [
     'ie',
     'oa', 'oi', 'oy',
     'ou', 'ow',
-    'ue'
+    'ue', "ui"
 ];

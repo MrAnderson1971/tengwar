@@ -1,12 +1,5 @@
 // Helper functions for heuristics (fallbacks)
-import {
-    commonDiphthongs,
-    englishToTengwar,
-    specialWords,
-    tengwarMap,
-    vowelPhonemePatterns,
-    vowelPhonemes
-} from "./mappings";
+import {commonDiphthongs, englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
 import {dictionary} from "cmu-pronouncing-dictionary";
 import {alignLettersToPhonemes} from "./align";
 
@@ -60,76 +53,32 @@ function isHardR(word, position) {
 }
 
 // Improved detection of silent E
-function hasSilentEImproved(word, pronunciation) {
+/**
+ *
+ * @param {string} word
+ * @param {number} position
+ * @param {string} pronunciation
+ * @param {any[]} alignmentByIndex
+ * @returns {boolean}
+ */
+function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
     // Quick check - if the word doesn't end with 'e', it's not a silent e
     if (word.length < 2 || word[word.length - 1].toLowerCase() !== 'e') {
         return false;
     }
 
+    const alignment = alignmentByIndex[position] || null;
+
     // If no pronunciation data, fall back to heuristic
-    if (!pronunciation) {
+    if (!pronunciation || !alignment) {
         return hasSilentE(word);
     }
 
-    // Split the pronunciation into phonemes
-    const phonemes = pronunciation.split(' ');
-
-    // Check if there's a final 'e' sound in the pronunciation
-    const lastPhoneme = phonemes[phonemes.length - 1];
-
-    // A more reliable way to detect silent 'e':
-    // 1. Count the number of vowel sounds in the pronunciation
-    // 2. Count the number of vowel letters in the word
-    // 3. If there are fewer vowel sounds than vowel letters, and the word ends with 'e',
-    //    then the 'e' is likely silent
-
-    const vowelLetters = ['a', 'e', 'i', 'o', 'u', 'y'];
-    let vowelLetterCount = 0;
-    for (let i = 0; i < word.length; i++) {
-        if (vowelLetters.includes(word[i].toLowerCase())) {
-            vowelLetterCount++;
-        }
+    if (word[position] !== 'e') {
+        return false;
     }
 
-    let vowelPhonemeCount = 0;
-    for (const phoneme of phonemes) {
-        // Remove stress markers for comparison
-        const basePhoneme = phoneme.replace(/[0-9]$/, '');
-        if (vowelPhonemes.includes(basePhoneme)) {
-            vowelPhonemeCount++;
-        }
-    }
-
-    // Final 'e' is likely silent if there are fewer vowel sounds than vowel letters
-    if (vowelLetterCount > vowelPhonemeCount) {
-        return true;
-    }
-
-    // For cases like "make" where the 'a' creates a diphthong with the 'e'
-    // but the 'e' itself is silent
-    const vowelsBeforeE = [];
-    for (let i = 0; i < word.length - 1; i++) {
-        if (vowelLetters.includes(word[i].toLowerCase())) {
-            vowelsBeforeE.push(word[i].toLowerCase());
-        }
-    }
-
-    // Check common silent 'e' patterns
-    if (vowelsBeforeE.length > 0) {
-        const lastVowelBeforeE = vowelsBeforeE[vowelsBeforeE.length - 1];
-        const indexOfLastVowel = word.toLowerCase().lastIndexOf(lastVowelBeforeE, word.length - 2);
-
-        // Check if there's a consonant between the last vowel and the final 'e'
-        if (indexOfLastVowel >= 0 && indexOfLastVowel < word.length - 2) {
-            // This is a classic silent 'e' pattern like "make", "site", "code"
-            return true;
-        }
-    }
-
-    // Last resort check: if the final phoneme is not a vowel sound,
-    // the final 'e' is likely silent
-    const lastPhonemeBase = lastPhoneme.replace(/[0-9]$/, '');
-    return !vowelPhonemes.includes(lastPhonemeBase);
+    return alignment.phoneme === null;
 }
 
 function hasSilentE(word) {
@@ -206,6 +155,10 @@ function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // M
     if (!pronunciation || !alignmentEntry) {
         // Fall back to the original heuristic
         return isSoftC(word, position);
+    }
+
+    if (alignmentEntry.phoneme === null) {
+        return false;
     }
 
     // Check the alignment entry for this position
@@ -370,7 +323,7 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
         // or if the second letter has no phoneme (silent/merged), check if the first phoneme is a diphthong.
         if (firstVowelPhoneme && (!alignmentEntry2 || !secondVowelPhoneme || alignmentEntry2.isSilent)) {
             // Check if the phoneme assigned to the first vowel IS a diphthong phoneme
-            const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW"]; // UW/IY are usually single vowels
+            const diphthongPhonemes = ["EY", "AY", "OY", "AW", "OW", "IH"]; // UW/IY are usually single vowels
             for (const dp of diphthongPhonemes) {
                 // Check base phoneme without stress marker
                 if (firstVowelPhoneme.replace(/[0-9]$/, '') === dp) {
@@ -400,6 +353,11 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
 }
 
 // Function to get a cached or new pronunciation
+/**
+ *
+ * @param {string} word
+ * @returns {null | string}
+ */
 function getPronunciation(word) {
     // Get from dictionary
     let pronunciation = null;
@@ -478,19 +436,19 @@ function removeDiacritics(str) {
 }
 
 // Update the transcribeToTengwar function by modifying the handling of 'e'
-export function transcribeToTengwar(text, debug = false) {
-    if (cache.has(text)) {
-        return cache.get(text);
+export function transcribeToTengwar(word, debug = true) {
+    if (cache.has(word)) {
+        return cache.get(word);
     }
-    const lowerText = text.toLowerCase();
+    const lowerText = word.toLowerCase();
     if (specialWords[lowerText]) {
         return specialWords[lowerText];
     }
 
-    const processedText = removeDiacritics(removeSilentLetters(text));
-
     // Get pronunciation
+    let processedText = removeDiacritics(word);
     const pronunciation = getPronunciation(processedText);
+    processedText = removeSilentLetters(processedText);
     const alignmentNaive = alignLettersToPhonemes(processedText, pronunciation);
     const alignment = new Array(processedText.length).fill(null);
 
@@ -687,7 +645,7 @@ export function transcribeToTengwar(text, debug = false) {
     }
 
     // Handle silent e at the end of words
-    if (hasSilentEImproved(processedText, pronunciation)) {
+    if (hasSilentEImproved(processedText, processedText.length - 1, pronunciation, alignment)) {
         result.push(tengwarMap['dot-below']);
     } else if (vowelOnTop) {
         if (vowelOnTop !== tengwarMap['two-dots-below']) { // no carrier for y
@@ -697,6 +655,6 @@ export function transcribeToTengwar(text, debug = false) {
     }
 
     const output = result.join('');
-    cache.set(text, output);
+    cache.set(word, output);
     return output;
 }
