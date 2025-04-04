@@ -32,3 +32,7 @@ test("psychology", () => {
 test("know", () => {
     expect(transcribeToTengwar("know")).toBe(tengwarToString("nuumen", "vala", "right-curl"));
 })
+
+test("vanquish", () => {
+    expect(transcribeToTengwar("vanquish")).toBe(tengwarToString("ampa", "nuumen", "three-dots", "quesse", "tilde", "aha", "dot"));
+})

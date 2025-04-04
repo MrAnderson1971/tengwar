@@ -98,7 +98,7 @@ export const englishToTengwar = {
     'mp': {char: tengwarMap['parma'] + tengwarMap['nasalizer']},
     'nk': {char: tengwarMap['quesse'] + tengwarMap['nasalizer']},
     //'nc': { char: tengwarMap['quesse'] + tengwarMap['nasalizer'] }, // Same as nk
-    'nq': {char: tengwarMap['unque']},
+    //'nq': {char: tengwarMap['unque']},
     'n': {char: tengwarMap['nuumen']},
     'm': {char: tengwarMap['malta']},
     'r': {char: tengwarMap['roomen']}, // Default to soft r; disambiguation will occur below
