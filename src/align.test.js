@@ -36,3 +36,19 @@ test("know", () => {
 test("vanquish", () => {
     expect(transcribeToTengwar("vanquish")).toBe(tengwarToString("ampa", "nuumen", "three-dots", "quesse", "tilde", "aha", "dot"));
 })
+
+test("beautiful", () => {
+    expect(transcribeToTengwar("beautiful")).toBe(tengwarToString("umbar", "osse", "acute", "tinco", "left-curl", "formen", "dot", "lambe", "left-curl"));
+})
+
+test("bureau", () => {
+    expect(transcribeToTengwar("bureau")).toBe(tengwarToString("umbar", "roomen", "left-curl", "telco", "right-curl"))
+})
+
+test("rifle", () => {
+    expect(transcribeToTengwar("rifle")).toBe(tengwarToString("roomen", "formen", "dot", "lambe", "dot-below"));
+})
+
+test("able", () => {
+    expect(transcribeToTengwar("able")).toBe(tengwarToString("umbar", "three-dots", "lambe", "dot-below"));
+})

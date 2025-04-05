@@ -57,8 +57,8 @@ function isHardR(word, position) {
  *
  * @param {string} word
  * @param {number} position
- * @param {string} pronunciation
- * @param {any[]} alignmentByIndex
+ * @param {string|null} pronunciation
+ * @param {AlignmentResult[]|null} alignmentByIndex
  * @returns {boolean}
  */
 function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
@@ -76,6 +76,10 @@ function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
 
     if (word[position] !== 'e') {
         return false;
+    }
+
+    if (/AH/.test(alignment.phoneme) && word[position - 1] === 'l') {
+        return true;
     }
 
     return alignment.phoneme === null;
@@ -435,6 +439,25 @@ function removeDiacritics(str) {
         .normalize('NFC');          // Normalize back (optional)
 }
 
+/**
+ *
+ * @param {string} word
+ * @param {number} position
+ * @param {string|null} pronunciation
+ * @param {AlignmentResult[]|null} alignment
+ * @return {boolean}
+ */
+function isMonophthongEau(word, position, pronunciation, alignment) {
+    if (!alignment || !pronunciation) {
+        return true; // assume it's true
+    }
+    const alignment1 = alignment[position] || null;
+    const alignment2 = alignment[position + 1] || null;
+    const alignment3 = alignment[position + 2] || null;
+
+    return alignment1?.phoneme === null && alignment2?.phoneme === null && /OW/.test(alignment3?.phoneme);
+}
+
 // Update the transcribeToTengwar function by modifying the handling of 'e'
 export function transcribeToTengwar(word, debug = true) {
     if (cache.has(word)) {
@@ -481,6 +504,12 @@ export function transcribeToTengwar(word, debug = true) {
         const char = processedText[i].toLowerCase();
         let found = false;
 
+        if (processedText.slice(i, i + 3) === 'eau' && isMonophthongEau(processedText, i, pronunciation, alignment)) {
+            found = true;
+            vowelOnTop = tengwarMap['right-curl'];
+            i += 3;
+            continue;
+        }
         // Check for diphthongs
         if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation, alignment)) {
             const charsToSkip = handleDiphthong(processedText, i, result);
@@ -550,7 +579,6 @@ export function transcribeToTengwar(word, debug = true) {
                         if (vowelOnTop) {
                             result.push(tengwarMap['telco']);
                             result.push(vowelOnTop);
-                            vowelOnTop = null;
                         }
                         vowelOnTop = englishToTengwar[char].tehta;
                         i++;

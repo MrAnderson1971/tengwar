@@ -1,3 +1,14 @@
+/**
+ * @typedef {Object} AlignmentResult
+ * @property {string} letters The letter(s) from the word being aligned
+ * @property {number} startIndex The starting index of the letter(s) in the original word
+ * @property {number} endIndex The ending index of the letter(s) in the original word
+ * @property {string|null} phoneme The corresponding phoneme, or null if silent
+ * @property {boolean} isSilent Whether this letter is silent (has no phoneme)
+ * @property {string} [pattern] Optional - The pattern this alignment belongs to (if from commonPatterns)
+ * @property {boolean} [isMissingLetter] Optional - Whether this phoneme doesn't map to a specific letter
+ */
+
 // This function aligns CMU dictionary phonemes with English spelling
 import {commonPatterns, phonemeToLetterPatterns, vowelPhonemes} from "./mappings";
 
@@ -57,15 +68,7 @@ function getSingleScore(letter, phoneme) {
  * Incorporates commonPatterns for better multi-character alignment.
  * @param {string} word The word to align.
  * @param {string} pronunciation The CMU dictionary pronunciation (space-separated phonemes).
- * @returns {Array<{
- *   letters: string,
- *   startIndex: number,
- *   endIndex: number,
- *   phoneme: string|null,
- *   isSilent: boolean,
- *   pattern?: string,
- *   isMissingLetter?: boolean
- * }>|null} An array of alignment objects or null if inputs are invalid.
+ * @returns {Array<AlignmentResult>|null} An array of alignment objects or null if inputs are invalid.
  */
 export function alignLettersToPhonemes(word, pronunciation) {
     if (!word || !pronunciation) {
