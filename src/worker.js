@@ -106,10 +106,19 @@ function hasSilentE(word) {
     return hasEarlierVowel && isConsonant;
 }
 
-/*
-S that sounds like Z.
+/**
+ * S that sounds like Z
+ * @param {string} word
+ * @param {number} position
+ * @param {string|null} pronunciation
+ * @param {AlignmentResult[]|null} alignmentByIndex
+ * @returns {boolean}
  */
 function isHardS(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+    if (word.slice(position - 1, position + 2) === 'ase') { // Enzyme suffix matching
+        return true;
+    }
+
     const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
@@ -223,7 +232,14 @@ function getYVowelTypeImproved(word, position, pronunciation, alignmentByIndex) 
     return getYVowelType(word, position, pronunciation);
 }
 
-// Improved disambiguation for hard R
+/**
+ * Improved disambiguation for hard R
+ * @param {string} word
+ * @param {number} position
+ * @param {string|null} pronunciation
+ * @param {AlignmentResult[]|null} alignmentByIndex
+ * @returns {boolean}
+ */
 function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
     const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
 

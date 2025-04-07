@@ -80,3 +80,7 @@ test("colour", () => {
 test("programme", () => {
     expect(transcribeToTengwar("programme")).toBe(transcribeToTengwar("program"));
 })
+
+test('lactase', () => {
+    expect(transcribeToTengwar("lactase")).toBe(tengwarToString("lambe", "quesse", 'three-dots', 'tinco', 'essenuquerna', 'three-dots', 'dot-below'));
+})
