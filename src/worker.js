@@ -46,13 +46,6 @@ function isNgDigraph(word, position) {
     return position === word.length - 2 || (nextNextChar && vowels.includes(nextNextChar));
 }
 
-function isHardR(word, position) {
-    const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const prevChar = position > 0 ? word[position - 1].toLowerCase() : null;
-    const nextChar = position < word.length - 1 ? word[position + 1].toLowerCase() : null;
-    return prevChar && vowels.includes(prevChar) && (!nextChar || !vowels.includes(nextChar));
-}
-
 // Improved detection of silent E
 /**
  *
@@ -233,36 +226,35 @@ function getYVowelTypeImproved(word, position, pronunciation, alignmentByIndex) 
 }
 
 /**
- * Improved disambiguation for hard R
+ * Use oore (postvocalic) if it's the end of a word or followed by a consonant or if it's after a vowel
+ * Use roomen if it's followed by a vowel
  * @param {string} word
  * @param {number} position
  * @param {string|null} pronunciation
  * @param {AlignmentResult[]|null} alignmentByIndex
  * @returns {boolean}
  */
-function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
-
-    if (!pronunciation || !alignmentEntry) {
-        // Fall back to the original heuristic
-        return isHardR(word, position);
+function isPostvocalicR(word, position, pronunciation, alignmentByIndex) {
+    const alignment = alignmentByIndex ? alignmentByIndex[position] : null;
+    if (word[position + 1] === 'r') {
+        return isPostvocalicR(word, position + 1, pronunciation, alignmentByIndex); // double R - do whatever the next R is
     }
 
-    if (alignmentEntry.letters.includes('r') || alignmentEntry.letters.includes('R')) {
-        // In CMU, the 'ER' phoneme (like in "bird", "father") often corresponds
-        // to the vocalic/syllabic R sound that might use 'oore'.
-        // This is an approximation of the original intent based on local info.
-        if (/[AEIOU]/.test(alignmentEntry.phoneme)) {
-            return true; // Treat ER phoneme as indication for 'oore'
-        }
-        // If the phoneme is just 'R', it's likely the regular 'romen'
-        if (alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('R')) {
-            return false;
-        }
+    if (/[bcdfgjklmnpqstvwxz]/.test(word[position + 1])) {
+        return true; // consonant that's not [hr] or "undefined"
     }
 
-    // Fall back to the original heuristic if uncertain
-    return isHardR(word, position);
+    if (word[position + 1] === 'h' && alignment?.phoneme === null) {
+        return isPostvocalicR(word, position + 2, pronunciation, alignmentByIndex);
+    }
+
+    if (word[position + 1] === 'e') {
+        return !isDiphthong(word, position + 1, pronunciation, alignmentByIndex) &&
+            (isSilentEInMiddle(word, position + 1, pronunciation, alignmentByIndex) ||
+                hasSilentEImproved(word, position + 1, pronunciation, alignmentByIndex));
+    }
+
+    return false; // is consonant
 }
 
 // Improved detection of silent E
@@ -307,7 +299,7 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
 
 
 // Function to detect if vowels are in the same syllable using pronunciation data
-// Similar issue to isHardRImproved - checking relationship between phonemes at pos/pos+1
+// Similar issue to isPostvocalicR - checking relationship between phonemes at pos/pos+1
 // requires looking at two alignment entries. This is still O(1) with the index.
 function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modified parameter
     // If not enough characters for a diphthong
@@ -652,7 +644,7 @@ export function transcribeToTengwar(word, debug = true) {
                         break;
                     case 'r':
                         // Use improved hard r detection
-                        if (isHardRImproved(processedText, i, pronunciation, alignment)) {
+                        if (isPostvocalicR(processedText, i, pronunciation, alignment)) {
                             result.push(tengwarMap['oore']);
                         } else {
                             result.push(englishToTengwar['r'].char);

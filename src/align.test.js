@@ -14,7 +14,7 @@ test("account", () => {
 })
 
 test("accident", () => {
-    expect(transcribeToTengwar("accident")).toBe(tengwarToString("quesse", "three-dots", "silmenuquerna", "ando", "dot", "tinco", "nasalizer", "acute"))
+    expect(transcribeToTengwar("accident")).toBe(tengwarToString("quesse", "three-dots", "silmenuquerna", "ando", "dot", "tinco", "nasalizer", "acute"));
 })
 
 test("build", () => {
@@ -22,15 +22,15 @@ test("build", () => {
 })
 
 test("café", () => {
-    expect(transcribeToTengwar("café")).toBe(tengwarToString("quesse", "formen", "three-dots", "telco", "acute"))
+    expect(transcribeToTengwar("café")).toBe(tengwarToString("quesse", "formen", "three-dots", "telco", "acute"));
 })
 
 test("cake", () => {
-    expect(transcribeToTengwar("cake")).toBe(tengwarToString("quesse", "quesse", "three-dots", "dot-below"))
+    expect(transcribeToTengwar("cake")).toBe(tengwarToString("quesse", "quesse", "three-dots", "dot-below"));
 })
 
 test("psychology", () => {
-    expect(transcribeToTengwar("psychology")).toBe(tengwarToString("silme", "calma", "caron", "lambe", "right-curl", "ungwe", "right-curl", "two-dots-below"))
+    expect(transcribeToTengwar("psychology")).toBe(tengwarToString("silme", "calma", "caron", "lambe", "right-curl", "ungwe", "right-curl", "two-dots-below"));
 })
 
 test("know", () => {
@@ -46,7 +46,7 @@ test("beautiful", () => {
 })
 
 test("bureau", () => {
-    expect(transcribeToTengwar("bureau")).toBe(tengwarToString("umbar", "roomen", "left-curl", "telco", "right-curl"))
+    expect(transcribeToTengwar("bureau")).toBe(tengwarToString("umbar", "roomen", "left-curl", "telco", "right-curl"));
 })
 
 test("rifle", () => {
@@ -62,7 +62,7 @@ test("treasure", () => {
 })
 
 test("explore", () => {
-    expect(transcribeToTengwar("explore")).toBe(tengwarToString("quesse", "left-hook", "acute", "parma", "lambe", "roomen", "right-curl", "dot-below"));
+    expect(transcribeToTengwar("explore")).toBe(tengwarToString("quesse", "left-hook", "acute", "parma", "lambe", "oore", "right-curl", "dot-below"));
 })
 
 test("Syria", () => {
@@ -83,4 +83,20 @@ test("programme", () => {
 
 test('lactase', () => {
     expect(transcribeToTengwar("lactase")).toBe(tengwarToString("lambe", "quesse", 'three-dots', 'tinco', 'essenuquerna', 'three-dots', 'dot-below'));
+})
+
+test('heart', () => {
+    expect(transcribeToTengwar('heart')).toBe(tengwarToString('hyarmen', 'osse', 'acute', 'oore', 'tinco'));
+})
+
+test('carry', () => {
+    expect(transcribeToTengwar('carry')).toBe(tengwarToString('quesse', 'roomen', 'three-dots', 'doubler', 'two-dots-below'));
+})
+
+test('purr', () => {
+    expect(transcribeToTengwar('purr')).toBe(tengwarToString('parma', 'oore', 'left-curl', 'doubler'));
+})
+
+test('rhyme', () => {
+    expect(transcribeToTengwar('rhyme')).toBe(tengwarToString('roomen', 'hyarmen', 'malta', 'caron', 'dot-below'));
 })
