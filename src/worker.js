@@ -78,7 +78,7 @@ function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
         return false;
     }
 
-    if (/AH/.test(alignment.phoneme) && word[position - 1] === 'l') {
+    if (/AH/.test(alignment.phoneme) && word[position - 1] === 'l' || /R/.test(alignment.phoneme) && word[position - 1] === 'r') {
         return true;
     }
 
@@ -235,8 +235,8 @@ function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // M
         // In CMU, the 'ER' phoneme (like in "bird", "father") often corresponds
         // to the vocalic/syllabic R sound that might use 'oore'.
         // This is an approximation of the original intent based on local info.
-        if (position > 0 && alignmentByIndex[position - 1].phoneme &&
-            vowelPhonemePatterns.test(alignmentByIndex[position - 1].phoneme.replace(/[0-9]$/, ''))) {
+        if (position > 0 && alignmentByIndex[position + 1]?.phoneme &&
+            vowelPhonemePatterns.test(alignmentByIndex[position + 1]?.phoneme.replace(/[0-9]$/, ''))) {
             return true; // Treat ER phoneme as indication for 'oore'
         }
         // If the phoneme is just 'R', it's likely the regular 'romen'

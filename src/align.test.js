@@ -13,6 +13,10 @@ test("account", () => {
     expect(transcribeToTengwar("account")).toBe(tengwarToString("quesse", "three-dots", "doubler", "vala", "right-curl", "tinco", "nasalizer"));
 })
 
+test("accident", () => {
+    expect(transcribeToTengwar("accident")).toBe(tengwarToString("quesse", "three-dots", "silmenuquerna", "ando", "dot", "tinco", "nasalizer", "acute"))
+})
+
 test("build", () => {
     expect(transcribeToTengwar("build")).toBe(tengwarToString("umbar", "anna", "left-curl", "alda"));
 })
@@ -51,4 +55,8 @@ test("rifle", () => {
 
 test("able", () => {
     expect(transcribeToTengwar("able")).toBe(tengwarToString("umbar", "three-dots", "lambe", "dot-below"));
+})
+
+test("treasure", () => {
+    expect(transcribeToTengwar("treasure")).toBe(tengwarToString("tinco", "roomen", "osse", "acute", "essenuquerna", "oore", "left-curl", "dot-below"));
 })
