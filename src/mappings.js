@@ -206,6 +206,8 @@ export const commonPatterns = [
     {letters: 'eer', phonemes: ['IH1', 'R']},
     {letters: 'er', phonemes: ['ER0']},
     {letters: 'er', phonemes: ['ER1']},
+    {letters: 're', phonemes: ['ER0']},
+    {letters: 're', phonemes: ['ER1']},
     {letters: 'ir', phonemes: ['ER1']},
     {letters: 'or', phonemes: ['AO1', 'R']},
     {letters: 'ore', phonemes: ['AO1', 'R']},

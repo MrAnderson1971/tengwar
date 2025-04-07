@@ -235,8 +235,7 @@ function isHardRImproved(word, position, pronunciation, alignmentByIndex) { // M
         // In CMU, the 'ER' phoneme (like in "bird", "father") often corresponds
         // to the vocalic/syllabic R sound that might use 'oore'.
         // This is an approximation of the original intent based on local info.
-        if (position > 0 && alignmentByIndex[position + 1]?.phoneme &&
-            vowelPhonemePatterns.test(alignmentByIndex[position + 1]?.phoneme.replace(/[0-9]$/, ''))) {
+        if (/[AEIOU]/.test(alignmentEntry.phoneme)) {
             return true; // Treat ER phoneme as indication for 'oore'
         }
         // If the phoneme is just 'R', it's likely the regular 'romen'

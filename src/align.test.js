@@ -60,3 +60,15 @@ test("able", () => {
 test("treasure", () => {
     expect(transcribeToTengwar("treasure")).toBe(tengwarToString("tinco", "roomen", "osse", "acute", "essenuquerna", "oore", "left-curl", "dot-below"));
 })
+
+test("explore", () => {
+    expect(transcribeToTengwar("explore")).toBe(tengwarToString("quesse", "left-hook", "acute", "parma", "lambe", "roomen", "right-curl", "dot-below"));
+})
+
+test("Syria", () => {
+    expect(transcribeToTengwar("Syria")).toBe(tengwarToString("silme", "two-dots-below", "roomen", "telco", "dot", "telco", "three-dots"));
+})
+
+test("Iraq", () => {
+    expect(transcribeToTengwar("Iraq")).toBe(tengwarToString("roomen", "dot", "quesse", "three-dots"));
+})
