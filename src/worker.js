@@ -9,15 +9,21 @@ function isSoftC(word, position) {
     return nextChar && ['e', 'i', 'y'].includes(nextChar);
 }
 
+/**
+ *
+ * @param {string} word lowercase
+ * @returns {*}
+ */
 function removeSilentLetters(word) {
     // Patterns for silent letters
     const silentPatterns = [
-        {pattern: /^p(?=[stn])/i, silent: 'p'},  // silent p in psychology, pterodactyl, pneumonia
-        {pattern: /^k(?=n)/i, silent: 'k'},    // silent k in knight, know
-        {pattern: /^w(?=r)/i, silent: 'w'},    // silent w in write, wrong
+        {pattern: /^p(?=[stn])/, silent: 'p'},  // silent p in psychology, pterodactyl, pneumonia
+        {pattern: /k(?=n)/, silent: 'k'},    // silent k in knight, know
+        {pattern: /^w(?=r)/, silent: 'w'},    // silent w in write, wrong
     ];
 
     let processedWord = word;
+    processedWord = processedWord.replace(/c(k(?=n))/g, "cc"); // special cases where kn is preceded by a c
     for (const {pattern} of silentPatterns) {
         if (pattern.test(processedWord)) {
             processedWord = processedWord.replace(pattern, '');
