@@ -124,3 +124,7 @@ test('ancient', () => {
 test('scene', () => {
     expect(transcribeToTengwar('scene')).toBe(tengwarToString('silme', 'silme-nuquerna', 'nuumen', 'acute', 'dot-below'));
 })
+
+test('pneumonia', () => {
+    expect(transcribeToTengwar('pneumonia')).toBe(tengwarToString('nuumen', 'dot-below', 'malta', 'left-curl', 'nuumen', 'right-curl', 'telco', 'dot', 'telco', 'three-dots'));
+})

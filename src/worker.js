@@ -12,7 +12,7 @@ function isSoftC(word, position) {
 function removeSilentLetters(word) {
     // Patterns for silent letters
     const silentPatterns = [
-        {pattern: /^p(?=[st])/i, silent: 'p'},  // silent p in psychology, pterodactyl
+        {pattern: /^p(?=[stn])/i, silent: 'p'},  // silent p in psychology, pterodactyl, pneumonia
         {pattern: /^k(?=n)/i, silent: 'k'},    // silent k in knight, know
         {pattern: /^w(?=r)/i, silent: 'w'},    // silent w in write, wrong
     ];
