@@ -2,6 +2,7 @@
 import {commonDiphthongs, englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
 import {dictionary} from "cmu-pronouncing-dictionary";
 import {alignLettersToPhonemes} from "./align";
+import translate from "british_american_translate";
 
 function isSoftC(word, position) {
     const nextChar = position < word.length - 1 ? word[position + 1].toLowerCase() : null;
@@ -468,7 +469,7 @@ export function transcribeToTengwar(word, debug = true) {
     }
 
     // Get pronunciation
-    let processedText = removeDiacritics(word);
+    let processedText = removeDiacritics(translate.uk2us(word));
     const pronunciation = getPronunciation(processedText);
     processedText = removeSilentLetters(processedText);
     const alignmentNaive = alignLettersToPhonemes(processedText, pronunciation);

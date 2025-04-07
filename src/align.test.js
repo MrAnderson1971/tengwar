@@ -72,3 +72,11 @@ test("Syria", () => {
 test("Iraq", () => {
     expect(transcribeToTengwar("Iraq")).toBe(tengwarToString("roomen", "dot", "quesse", "three-dots"));
 })
+
+test("colour", () => {
+    expect(transcribeToTengwar("colour")).toBe(transcribeToTengwar("color"));
+})
+
+test("programme", () => {
+    expect(transcribeToTengwar("programme")).toBe(transcribeToTengwar("program"));
+})

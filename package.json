@@ -21,6 +21,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "british_american_translate": "^2.0.1",
     "cmu-pronouncing-dictionary": "^3.0.0"
   }
 }
