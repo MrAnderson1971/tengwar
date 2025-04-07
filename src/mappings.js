@@ -31,9 +31,9 @@ export const tengwarMap = {
     'lambe': 'j',       // \Tlambe
     'alda': 'm',        // \Talda
     'silme': '8',       // \Tsilme
-    'silmenuquerna': 'i', // \Tsilmenuquerna
+    'silme-nuquerna': 'i', // \Tsilmenuquerna
     'esse': ';',        // \Tesse
-    'essenuquerna': ',', // \Tessenuquerna
+    'esse-nuquerna': ',', // \Tessenuquerna
     'hyarmen': '9',     // \Thyarmen
     'hwesta-sindarinwa': 'o', // \Thwestasindarinwa
     'yanta': 'm',       // \Tyanta
@@ -108,7 +108,7 @@ export const englishToTengwar = {
     'l': {char: tengwarMap['lambe']},
     'ld': {char: tengwarMap['alda']},
     's': {char: tengwarMap['silme']},
-    'z': {char: tengwarMap['essenuquerna']},
+    'z': {char: tengwarMap['esse-nuquerna']},
     'sh': {char: tengwarMap['aha']},
     'y': {char: tengwarMap['anna']}, // Default to consonant y; disambiguation will occur below
     'gh': {char: tengwarMap['unque']},

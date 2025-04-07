@@ -164,8 +164,8 @@ function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // M
         return isSoftC(word, position);
     }
 
-    if (alignmentEntry.phoneme === null) {
-        return false;
+    if (alignmentEntry.phoneme === null) { // some niche edge cases: science, scene, social, ancient, ocean, etc.
+        return /[CS]H/.test(alignmentByIndex[position + 1].phoneme) || word[position - 1] === 's';
     }
 
     // Check the alignment entry for this position
@@ -479,7 +479,7 @@ export function transcribeToTengwar(word, debug = true) {
     // Get pronunciation
     let processedText = removeDiacritics(translate.uk2us(word));
     const pronunciation = getPronunciation(processedText);
-    processedText = removeSilentLetters(processedText);
+    processedText = removeSilentLetters(processedText.toLowerCase());
     const alignmentNaive = alignLettersToPhonemes(processedText, pronunciation);
     const alignment = new Array(processedText.length).fill(null);
 
@@ -611,8 +611,8 @@ export function transcribeToTengwar(word, debug = true) {
                     case 'c':
                         // Use improved soft c detection
                         if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
-                            // Soft c: use silmenuquerna
-                            result.push(tengwarMap['silmenuquerna']);
+                            // Soft c: use silme-nuquerna
+                            result.push(tengwarMap['silme-nuquerna']);
                         } else {
                             // Hard c: use quesse
                             result.push(englishToTengwar['c'].char);

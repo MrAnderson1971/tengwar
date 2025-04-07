@@ -14,7 +14,7 @@ test("account", () => {
 })
 
 test("accident", () => {
-    expect(transcribeToTengwar("accident")).toBe(tengwarToString("quesse", "three-dots", "silmenuquerna", "ando", "dot", "tinco", "nasalizer", "acute"));
+    expect(transcribeToTengwar("accident")).toBe(tengwarToString("quesse", "three-dots", "silme-nuquerna", "ando", "dot", "tinco", "nasalizer", "acute"));
 })
 
 test("build", () => {
@@ -58,7 +58,7 @@ test("able", () => {
 })
 
 test("treasure", () => {
-    expect(transcribeToTengwar("treasure")).toBe(tengwarToString("tinco", "roomen", "osse", "acute", "essenuquerna", "oore", "left-curl", "dot-below"));
+    expect(transcribeToTengwar("treasure")).toBe(tengwarToString("tinco", "roomen", "osse", "acute", "esse-nuquerna", "oore", "left-curl", "dot-below"));
 })
 
 test("explore", () => {
@@ -82,7 +82,7 @@ test("programme", () => {
 })
 
 test('lactase', () => {
-    expect(transcribeToTengwar("lactase")).toBe(tengwarToString("lambe", "quesse", 'three-dots', 'tinco', 'essenuquerna', 'three-dots', 'dot-below'));
+    expect(transcribeToTengwar("lactase")).toBe(tengwarToString("lambe", "quesse", 'three-dots', 'tinco', 'esse-nuquerna', 'three-dots', 'dot-below'));
 })
 
 test('heart', () => {
@@ -99,4 +99,28 @@ test('purr', () => {
 
 test('rhyme', () => {
     expect(transcribeToTengwar('rhyme')).toBe(tengwarToString('roomen', 'hyarmen', 'malta', 'caron', 'dot-below'));
+})
+
+test('perhaps', () => {
+    expect(transcribeToTengwar('perhaps')).toBe(tengwarToString('parma', 'oore', 'acute', 'hyarmen', 'parma', 'three-dots', 'silme'));
+})
+
+test('Science', () => {
+    expect(transcribeToTengwar('Science')).toBe(tengwarToString('silme', 'silme-nuquerna', 'telco', 'dot', 'nuumen', 'acute', 'silme-nuquerna', 'dot-below'));
+})
+
+test('social', () => {
+    expect(transcribeToTengwar('social')).toBe(tengwarToString('silme', 'silme-nuquerna', 'right-curl', 'telco', 'dot', 'lambe', 'three-dots'));
+})
+
+test('ocean', () => {
+    expect(transcribeToTengwar('ocean')).toBe(tengwarToString('silme-nuquerna', 'right-curl', 'osse', 'acute', 'nuumen'));
+})
+
+test('ancient', () => {
+    expect(transcribeToTengwar('ancient')).toBe(tengwarToString('nuumen', 'three-dots', 'silme-nuquerna', 'telco', 'dot', 'dot-below', 'tinco', 'nasalizer'));
+})
+
+test('scene', () => {
+    expect(transcribeToTengwar('scene')).toBe(tengwarToString('silme', 'silme-nuquerna', 'nuumen', 'acute', 'dot-below'));
 })
