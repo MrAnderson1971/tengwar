@@ -6,7 +6,7 @@ let fontInjected = false;
 let currentFont = 'annatar';
 
 // Listen for messages from popup.js
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request) {
     // --- THIS LISTENER REMAINS LARGELY THE SAME ---
     // It handles messages *after* initialization or user interaction
     if (request.action === 'updateTengwarStatus') {
@@ -132,32 +132,78 @@ function processPage() {
     setupMutationObserver();
 }
 
+/**
+ *
+ * @param {Element} element
+ * @returns {boolean}
+ */
+function isElementVisible(element) {
+    if (!element) {
+        return false;
+    }
+
+    // Get computed style
+    const style = window.getComputedStyle(element);
+
+    // Check basic visibility properties
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        return false;
+    }
+
+    // Check for zero dimensions (often indicates hidden elements)
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+        return false;
+    }
+
+    // Check aria-hidden attribute
+    if (element.getAttribute('aria-hidden') === 'true') {
+        return false;
+    }
+
+    // Check for hidden attribute
+    return !element.hasAttribute('hidden');
+}
+
 // Process content within a container element
 function processContent(container) {
     if (!container || isElementToSkip(container)) {
         return;
     }
+
     const textNodes = [];
     const walker = document.createTreeWalker(
         container,
         NodeFilter.SHOW_TEXT,
         {
             acceptNode: function (node) {
-                if (!node.nodeValue.trim() || isElementToSkip(node.parentElement) || !node.parentElement.offsetParent) {
+                if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
                     return NodeFilter.FILTER_REJECT;
                 }
+
+                // Add visibility check for the parent
+                if (!isElementVisible(node.parentElement)) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+
                 return NodeFilter.FILTER_ACCEPT;
             }
         }
     );
+
     let node;
     while ((node = walker.nextNode())) {
         textNodes.push(node);
     }
+
     textNodes.forEach(processTextNode);
 }
 
-// Function to determine if an element should be skipped
+/** Function to determine if an element should be skipped
+ *
+ * @param {Element} element
+ * @returns {boolean}
+ */
 function isElementToSkip(element) {
     if (!element) {
         return true;
@@ -187,7 +233,10 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
-// Process a text node
+/** Process a text node
+ *
+ * @param {Text} textNode
+ */
 function processTextNode(textNode) {
     if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
         return;
@@ -281,11 +330,34 @@ function setupMutationObserver() {
 
         mutations.forEach(function (mutation) {
             if (mutation.type === 'childList') {
+                // Handle new nodes being added
                 mutation.addedNodes.forEach(function (node) {
                     if (node.nodeType === Node.ELEMENT_NODE && !isElementToSkip(node)) {
                         nodesToProcess.add(node);
                     }
                 });
+            } else if (mutation.type === 'attributes') {
+                // For attribute changes that might affect visibility
+                const target = mutation.target;
+
+                // Only process if it's an element
+                if (target.nodeType === Node.ELEMENT_NODE) {
+                    // Check if the element or any of its children might need processing
+                    const wasHidden = target.hasAttribute('data-tengwar-was-hidden');
+                    const isVisible = isElementVisible(target);
+
+                    // If element transitioned from hidden to visible
+                    if (wasHidden && isVisible) {
+                        target.removeAttribute('data-tengwar-was-hidden');
+                        if (!isElementToSkip(target)) {
+                            nodesToProcess.add(target);
+                        }
+                    }
+                    // If element is now hidden, mark it for future reference
+                    else if (!isVisible) {
+                        target.setAttribute('data-tengwar-was-hidden', 'true');
+                    }
+                }
             }
         });
 
@@ -295,10 +367,11 @@ function setupMutationObserver() {
 
     observer.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'] // Common attributes affecting visibility
     });
 }
-
 
 // Check initial Tengwar status when extension loads
 chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
@@ -334,8 +407,7 @@ function initializeTengwar() {
             }
 
             const enabledDomains = data.tengwarEnabledDomains || [];
-            const font = data.tengwarFont || 'annatar';
-            currentFont = font; // Store initially loaded font
+            currentFont = data.tengwarFont || 'annatar'; // Store initially loaded font
 
             if (enabledDomains.includes(currentDomain)) {
                 console.log(`Tengwar automatically enabled for ${currentDomain}`);
