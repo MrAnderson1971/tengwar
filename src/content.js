@@ -22,6 +22,7 @@ chrome.runtime.onMessage.addListener(function (request) {
             processPage(); // Process now that it's enabled
         } else if (!shouldBeEnabled && tengwarEnabled) {
             // Disable transcription - reload to revert simply
+            cleanupTengwarProcessing();
             window.location.reload();
         } else if (shouldBeEnabled && tengwarEnabled && newFont !== currentFont) {
             // Already enabled, but font changed via background message
@@ -233,13 +234,16 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
+// Add this to your content script
 const textNodeQueue = [];
 let isProcessing = false;
+let processingPaused = false;
+let processedCount = 0;
+let totalCount = 0;
+let batchSize = 5; // Start with small batches
+let timeoutId = null;
 
-/** Process a text node
- *
- * @param {Text} textNode
- */
+// Better node processing function
 function processTextNode(textNode) {
     if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
         return;
@@ -247,107 +251,170 @@ function processTextNode(textNode) {
 
     const parent = textNode.parentNode;
 
-    // Skip if already processed
     if (parent.classList && parent.classList.contains('tengwar-text')) {
         return;
     }
 
-    // Add to queue
-    textNodeQueue.push(textNode);
+    // Priority based on visibility
+    const rect = textNode.parentElement?.getBoundingClientRect();
+    const isVisible = rect &&
+        rect.top < window.innerHeight * 2 &&
+        rect.bottom > -window.innerHeight &&
+        rect.width > 0 &&
+        rect.height > 0;
+
+    // Add to appropriate queue position (visible first)
+    if (isVisible) {
+        textNodeQueue.unshift(textNode); // Add to front
+    } else {
+        textNodeQueue.push(textNode); // Add to back
+    }
+
+    totalCount++;
 
     // Start processing if not already running
     if (!isProcessing) {
         isProcessing = true;
-        setTimeout(processNextBatch, 0);
+        timeoutId = setTimeout(processNextBatch, 0);
     }
 }
 
-// Process nodes in small batches to avoid UI blocking
+// Process nodes in adaptive batches
 function processNextBatch() {
-    const MAX_NODES_PER_BATCH = 5;
     const startTime = performance.now();
-    const MAX_TIME_PER_BATCH = 16; // ms (roughly 1 frame at 60fps)
-
+    const targetTime = 16; // ms (1 frame @ 60fps)
     let nodesProcessed = 0;
 
+    // Adaptive batch size
+    // Start small, but increase as we process more without problems
+    if (processedCount > 100 && batchSize < 20) {
+        batchSize = Math.min(20, batchSize + 3);
+    }
+
+    // Process batch
     while (textNodeQueue.length > 0 &&
-    nodesProcessed < MAX_NODES_PER_BATCH &&
-    performance.now() - startTime < MAX_TIME_PER_BATCH) {
+    nodesProcessed < batchSize &&
+    performance.now() - startTime < targetTime) {
 
         const textNode = textNodeQueue.shift();
 
         // Skip if node no longer in DOM
-        if (!textNode.parentNode) continue;
-
-        // Process this text node (your original logic)
-        let text = textNode.nodeValue;
-        const parent = textNode.parentNode;
-
-        // Special case for "of the" phrases
-        text = text.replace(/\bof\s+the\b/gi, "ofthe");
-
-        // Process all words with your existing algorithm
-        const fragments = [];
-        let lastIndex = 0;
-        const wordRegex = /\p{L}+/gu;
-        let match;
-
-        while ((match = wordRegex.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-                fragments.push({
-                    text: text.substring(lastIndex, match.index),
-                    isTengwar: false
-                });
-            }
-
-            fragments.push({
-                text: transcribeToTengwar(match[0], false),
-                isTengwar: true,
-                original: match[0]
-            });
-
-            lastIndex = match.index + match[0].length;
+        if (!textNode.parentNode) {
+            continue;
         }
 
-        if (lastIndex < text.length) {
+        processIndividualNode(textNode);
+        nodesProcessed++;
+        processedCount++;
+    }
+
+    // Continue processing with adaptive timing
+    if (textNodeQueue.length > 0) {
+        // Check if we need to pause to let the UI catch up
+        if (processedCount % 100 === 0) {
+            // Give the UI thread a longer break every 100 nodes
+            timeoutId = setTimeout(processNextBatch, 50);
+        } else {
+            // Dynamic timing based on how long processing took
+            const elapsed = performance.now() - startTime;
+            const delay = elapsed > targetTime ? 20 : 0;
+            timeoutId = setTimeout(processNextBatch, delay);
+        }
+    } else {
+        isProcessing = false;
+        console.log(`Tengwar processing complete: ${processedCount}/${totalCount} nodes processed`);
+        // Reset counters for next time
+        processedCount = 0;
+        totalCount = 0;
+        batchSize = 5;
+    }
+}
+
+// Break out the individual node processing for clarity
+function processIndividualNode(textNode) {
+    let text = textNode.nodeValue;
+    const parent = textNode.parentNode;
+
+    // Standard processing logic
+    text = text.replace(/\bof\s+the\b/gi, "ofthe");
+
+    const fragments = [];
+    let lastIndex = 0;
+    const wordRegex = /\p{L}+/gu;
+    let match;
+
+    while ((match = wordRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
             fragments.push({
-                text: text.substring(lastIndex),
+                text: text.substring(lastIndex, match.index),
                 isTengwar: false
             });
         }
 
-        // Apply results
-        if (fragments.length > 0) {
-            const documentFragment = document.createDocumentFragment();
+        fragments.push({
+            text: transcribeToTengwar(match[0], false),
+            isTengwar: true,
+            original: match[0]
+        });
 
-            fragments.forEach(fragment => {
-                if (fragment.isTengwar) {
-                    const span = document.createElement('span');
-                    span.className = 'tengwar-text';
-                    span.textContent = fragment.text;
-                    span.setAttribute('data-original', fragment.original);
-                    documentFragment.appendChild(span);
-                } else {
-                    documentFragment.appendChild(document.createTextNode(fragment.text));
-                }
-            });
+        lastIndex = match.index + match[0].length;
+    }
 
-            try {
-                parent.replaceChild(documentFragment, textNode);
-            } catch (e) {
-                console.error("Error replacing node:", e);
+    if (lastIndex < text.length) {
+        fragments.push({
+            text: text.substring(lastIndex),
+            isTengwar: false
+        });
+    }
+
+    // Apply changes to DOM
+    if (fragments.length > 0) {
+        const documentFragment = document.createDocumentFragment();
+
+        fragments.forEach(fragment => {
+            if (fragment.isTengwar) {
+                const span = document.createElement('span');
+                span.className = 'tengwar-text';
+                span.textContent = fragment.text;
+                span.setAttribute('data-original', fragment.original);
+                documentFragment.appendChild(span);
+            } else {
+                documentFragment.appendChild(document.createTextNode(fragment.text));
             }
+        });
+
+        try {
+            parent.replaceChild(documentFragment, textNode);
+        } catch (e) {
+            console.error("Error replacing node:", e);
         }
-
-        nodesProcessed++;
     }
+}
 
-    // Continue processing or finish
-    if (textNodeQueue.length > 0) {
-        setTimeout(processNextBatch, 0);
-    } else {
-        isProcessing = false;
+// Add these functions for better control
+function pauseTengwarProcessing() {
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
     }
+    processingPaused = true;
+    isProcessing = false;
+}
+
+function resumeTengwarProcessing() {
+    if (processingPaused && textNodeQueue.length > 0) {
+        processingPaused = false;
+        isProcessing = true;
+        timeoutId = setTimeout(processNextBatch, 0);
+    }
+}
+
+// Add this to your cleanup when disabling
+function cleanupTengwarProcessing() {
+    pauseTengwarProcessing();
+    textNodeQueue.length = 0; // Clear queue
+    processedCount = 0;
+    totalCount = 0;
 }
 
 // Setup mutation observer to handle dynamic content
