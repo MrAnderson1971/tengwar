@@ -1,4 +1,6 @@
 // Initialize the extension when installed
+import {transcribeToTengwar} from "./worker";
+
 chrome.runtime.onInstalled.addListener(function() {
     // Initialize with an empty array of enabled domains instead of a global flag
     chrome.storage.sync.set({tengwarEnabledDomains: []});
@@ -49,5 +51,58 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
             sendResponse({enabled: isEnabled});
         });
         return true; // Required for async sendResponse
+    }
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'processTextNode') {
+        const text = request.text;
+
+        if (!text) {
+            sendResponse({ error: 'No text provided' });
+            return true;
+        }
+
+        try {
+            // Special case for "of the" phrases
+            let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
+
+            const fragments = [];
+            let lastIndex = 0;
+            const wordRegex = /\p{L}+/gu;
+            let match;
+
+            while ((match = wordRegex.exec(processedText)) !== null) {
+                // Add text before the current word
+                if (match.index > lastIndex) {
+                    fragments.push({
+                        text: processedText.substring(lastIndex, match.index),
+                        isTengwar: false
+                    });
+                }
+
+                fragments.push({
+                    text: transcribeToTengwar(match[0], false),
+                    isTengwar: true,
+                    original: match[0]
+                });
+
+                lastIndex = match.index + match[0].length;
+            }
+
+            // Add any remaining text
+            if (lastIndex < processedText.length) {
+                fragments.push({
+                    text: processedText.substring(lastIndex),
+                    isTengwar: false
+                });
+            }
+
+            sendResponse({ success: true, fragments: fragments });
+        } catch (error) {
+            sendResponse({ error: error.message });
+        }
+
+        return true; // Keep the message channel open for the async response
     }
 });
