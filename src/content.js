@@ -1,5 +1,3 @@
-import {transcribeToTengwar} from "./worker";
-
 // Track if Tengwar is currently enabled
 let tengwarEnabled = false;
 let fontInjected = false;
@@ -22,7 +20,7 @@ chrome.runtime.onMessage.addListener(function (request) {
             processPage(); // Process now that it's enabled
         } else if (!shouldBeEnabled && tengwarEnabled) {
             // Disable transcription - reload to revert simply
-            window.location.reload();
+            disableTengwar();
         } else if (shouldBeEnabled && tengwarEnabled && newFont !== currentFont) {
             // Already enabled, but font changed via background message
             updateTengwarFont(newFont);
@@ -233,6 +231,15 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
+const tengwarNodeQueue = [];
+let tengwarProcessingActive = false;
+let tengwarProcessingIndex = 0;
+let tengwarProcessedCount = 0;
+
+// Time limits for processing batches
+const TENGWAR_MAX_PROCESSING_TIME = 50; // ms before yielding to UI thread
+const TENGWAR_UI_REFRESH_DELAY = 16; // ms pause for UI refresh (1 frame @60fps)
+
 /** Process a text node
  *
  * @param {Text} textNode
@@ -242,78 +249,137 @@ function processTextNode(textNode) {
         return;
     }
 
-    let text = textNode.nodeValue;
     const parent = textNode.parentNode;
 
-    // If the parent is already a tengwar-text or has tengwar-text class, skip
+    // Skip if already processed
     if (parent.classList && parent.classList.contains('tengwar-text')) {
         return;
     }
 
-    // Use regular expression to find all words (sequences of letters)
-    const fragments = [];
-    let lastIndex = 0;
+    // Add to queue
+    tengwarNodeQueue.push({
+        node: textNode,
+        text: textNode.nodeValue,
+        parent: parent
+    });
 
-    // Special case for "of the" phrases before processing individual words
-    text = text.replace(/\bof\s+the\b/gi, "ofthe");
+    // Start processing if not already running
+    if (!tengwarProcessingActive) {
+        tengwarProcessingActive = true;
+        processTengwarBatchWithYield();
+    }
+}
 
-    // Find all alphabetical words
-    const wordRegex = /\p{L}+/gu;
-    let match;
-
-    while ((match = wordRegex.exec(text)) !== null) {
-        // Add text before the current word
-        if (match.index > lastIndex) {
-            fragments.push({
-                text: text.substring(lastIndex, match.index),
-                isTengwar: false
-            });
-        }
-
-        fragments.push({
-            text: transcribeToTengwar(match[0], false),
-            isTengwar: true,
-            original: match[0]
-        });
-
-        lastIndex = match.index + match[0].length;
+// Process as many nodes as possible within the time limit
+function processTengwarBatchWithYield() {
+    // Exit conditions
+    if (!tengwarEnabled || tengwarNodeQueue.length === 0) {
+        tengwarProcessingActive = false;
+        console.log(`Tengwar processing completed: ${tengwarProcessedCount} nodes processed`);
+        return;
     }
 
-    // Add any remaining text
-    if (lastIndex < text.length) {
-        fragments.push({
-            text: text.substring(lastIndex),
-            isTengwar: false
-        });
+    const startTime = performance.now();
+    const nodesToProcess = [];
+    const textsToProcess = [];
+
+    // Collect as many unprocessed nodes as possible within the time limit
+    // This just collects node references, not actually processing yet
+    while (tengwarProcessingIndex < tengwarNodeQueue.length &&
+    performance.now() - startTime < TENGWAR_MAX_PROCESSING_TIME) {
+
+        const nodeData = tengwarNodeQueue[tengwarProcessingIndex++];
+
+        // Skip nodes no longer in DOM
+        if (!nodeData.node.parentNode) continue;
+
+        nodesToProcess.push(nodeData);
+        textsToProcess.push(nodeData.text);
     }
 
-    // If we have fragments to process
-    if (fragments.length > 0) {
-        // Create fragment to hold the new content
-        const documentFragment = document.createDocumentFragment();
+    // If we reached the end of the queue, reset index
+    if (tengwarProcessingIndex >= tengwarNodeQueue.length) {
+        tengwarProcessingIndex = 0;
+        tengwarNodeQueue.length = 0; // Clear the processed queue
+    }
 
-        // Add each fragment
-        fragments.forEach(fragment => {
-            if (fragment.isTengwar) {
-                // Create a span for tengwar text
-                const span = document.createElement('span');
-                span.className = 'tengwar-text';
-                span.textContent = fragment.text;
-                span.setAttribute('data-original', fragment.original); // Store original for possible later use
-                documentFragment.appendChild(span);
-            } else {
-                // Regular text nodes for non-tengwar text
-                documentFragment.appendChild(document.createTextNode(fragment.text));
+    // If no nodes to process, yield and continue
+    if (nodesToProcess.length === 0) {
+        setTimeout(processTengwarBatchWithYield, TENGWAR_UI_REFRESH_DELAY);
+        return;
+    }
+
+    // Process the collected nodes in the background script
+    chrome.runtime.sendMessage(
+        {
+            action: 'processBatch',
+            textBatch: textsToProcess
+        },
+        response => {
+            if (!response || response.error) {
+                console.error("Error processing batch:", response?.error || "No response");
+
+                // Continue processing with the next batch
+                setTimeout(processTengwarBatchWithYield, TENGWAR_UI_REFRESH_DELAY);
+                return;
             }
-        });
 
-        // Replace the original node with our fragment
-        try {
-            parent.replaceChild(documentFragment, textNode);
-        } catch (e) {
-            console.error("Error replacing node:", e);
+            // Apply results to nodes
+            const results = response.results;
+            for (let i = 0; i < nodesToProcess.length; i++) {
+                const nodeData = nodesToProcess[i];
+                const fragments = results[i];
+
+                // Skip if node is no longer in DOM
+                if (!nodeData.node.parentNode) {
+                    continue;
+                }
+
+                // Create and insert processed content
+                if (fragments && fragments.length > 0) {
+                    const documentFragment = document.createDocumentFragment();
+
+                    fragments.forEach(fragment => {
+                        if (fragment.isTengwar) {
+                            const span = document.createElement('span');
+                            span.className = 'tengwar-text';
+                            span.textContent = fragment.text;
+                            span.setAttribute('data-original', fragment.original);
+                            documentFragment.appendChild(span);
+                        } else {
+                            documentFragment.appendChild(document.createTextNode(fragment.text));
+                        }
+                    });
+
+                    try {
+                        nodeData.parent.replaceChild(documentFragment, nodeData.node);
+                        tengwarProcessedCount++;
+                    } catch (e) {
+                        console.error("Error replacing node:", e);
+                    }
+                }
+            }
+
+            // Yield to UI thread before continuing
+            setTimeout(processTengwarBatchWithYield, TENGWAR_UI_REFRESH_DELAY);
         }
-    }
+    );
+}
+
+// Clean up processing
+function cleanupTengwarProcessing() {
+    tengwarProcessingActive = false;
+    tengwarProcessingIndex = 0;
+    tengwarNodeQueue.length = 0;
+    tengwarProcessedCount = 0;
+}
+
+// Make sure we add this to your existing disableTengwar
+function disableTengwar() {
+    tengwarEnabled = false;
+    cleanupTengwarProcessing();
+    // Rest of your cleanup...
+    window.location.reload();
 }
 
 // Setup mutation observer to handle dynamic content
