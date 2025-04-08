@@ -233,6 +233,9 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
+const textNodeQueue = [];
+let isProcessing = false;
+
 /** Process a text node
  *
  * @param {Text} textNode
@@ -242,77 +245,108 @@ function processTextNode(textNode) {
         return;
     }
 
-    let text = textNode.nodeValue;
     const parent = textNode.parentNode;
 
-    // If the parent is already a tengwar-text or has tengwar-text class, skip
+    // Skip if already processed
     if (parent.classList && parent.classList.contains('tengwar-text')) {
         return;
     }
 
-    // Use regular expression to find all words (sequences of letters)
-    const fragments = [];
-    let lastIndex = 0;
+    // Add to queue
+    textNodeQueue.push(textNode);
 
-    // Special case for "of the" phrases before processing individual words
-    text = text.replace(/\bof\s+the\b/gi, "ofthe");
+    // Start processing if not already running
+    if (!isProcessing) {
+        isProcessing = true;
+        setTimeout(processNextBatch, 0);
+    }
+}
 
-    // Find all alphabetical words
-    const wordRegex = /\p{L}+/gu;
-    let match;
+// Process nodes in small batches to avoid UI blocking
+function processNextBatch() {
+    const MAX_NODES_PER_BATCH = 5;
+    const startTime = performance.now();
+    const MAX_TIME_PER_BATCH = 16; // ms (roughly 1 frame at 60fps)
 
-    while ((match = wordRegex.exec(text)) !== null) {
-        // Add text before the current word
-        if (match.index > lastIndex) {
+    let nodesProcessed = 0;
+
+    while (textNodeQueue.length > 0 &&
+    nodesProcessed < MAX_NODES_PER_BATCH &&
+    performance.now() - startTime < MAX_TIME_PER_BATCH) {
+
+        const textNode = textNodeQueue.shift();
+
+        // Skip if node no longer in DOM
+        if (!textNode.parentNode) continue;
+
+        // Process this text node (your original logic)
+        let text = textNode.nodeValue;
+        const parent = textNode.parentNode;
+
+        // Special case for "of the" phrases
+        text = text.replace(/\bof\s+the\b/gi, "ofthe");
+
+        // Process all words with your existing algorithm
+        const fragments = [];
+        let lastIndex = 0;
+        const wordRegex = /\p{L}+/gu;
+        let match;
+
+        while ((match = wordRegex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                fragments.push({
+                    text: text.substring(lastIndex, match.index),
+                    isTengwar: false
+                });
+            }
+
             fragments.push({
-                text: text.substring(lastIndex, match.index),
+                text: transcribeToTengwar(match[0], false),
+                isTengwar: true,
+                original: match[0]
+            });
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        if (lastIndex < text.length) {
+            fragments.push({
+                text: text.substring(lastIndex),
                 isTengwar: false
             });
         }
 
-        fragments.push({
-            text: transcribeToTengwar(match[0], false),
-            isTengwar: true,
-            original: match[0]
-        });
+        // Apply results
+        if (fragments.length > 0) {
+            const documentFragment = document.createDocumentFragment();
 
-        lastIndex = match.index + match[0].length;
-    }
+            fragments.forEach(fragment => {
+                if (fragment.isTengwar) {
+                    const span = document.createElement('span');
+                    span.className = 'tengwar-text';
+                    span.textContent = fragment.text;
+                    span.setAttribute('data-original', fragment.original);
+                    documentFragment.appendChild(span);
+                } else {
+                    documentFragment.appendChild(document.createTextNode(fragment.text));
+                }
+            });
 
-    // Add any remaining text
-    if (lastIndex < text.length) {
-        fragments.push({
-            text: text.substring(lastIndex),
-            isTengwar: false
-        });
-    }
-
-    // If we have fragments to process
-    if (fragments.length > 0) {
-        // Create fragment to hold the new content
-        const documentFragment = document.createDocumentFragment();
-
-        // Add each fragment
-        fragments.forEach(fragment => {
-            if (fragment.isTengwar) {
-                // Create a span for tengwar text
-                const span = document.createElement('span');
-                span.className = 'tengwar-text';
-                span.textContent = fragment.text;
-                span.setAttribute('data-original', fragment.original); // Store original for possible later use
-                documentFragment.appendChild(span);
-            } else {
-                // Regular text nodes for non-tengwar text
-                documentFragment.appendChild(document.createTextNode(fragment.text));
+            try {
+                parent.replaceChild(documentFragment, textNode);
+            } catch (e) {
+                console.error("Error replacing node:", e);
             }
-        });
-
-        // Replace the original node with our fragment
-        try {
-            parent.replaceChild(documentFragment, textNode);
-        } catch (e) {
-            console.error("Error replacing node:", e);
         }
+
+        nodesProcessed++;
+    }
+
+    // Continue processing or finish
+    if (textNodeQueue.length > 0) {
+        setTimeout(processNextBatch, 0);
+    } else {
+        isProcessing = false;
     }
 }
 
