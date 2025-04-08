@@ -1,4 +1,5 @@
-// Initialize the extension when installed
+import {transcribeToTengwar} from "./worker";
+
 chrome.runtime.onInstalled.addListener(function() {
     // Initialize with an empty array of enabled domains instead of a global flag
     chrome.storage.sync.set({tengwarEnabledDomains: []});
@@ -49,5 +50,62 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
             sendResponse({enabled: isEnabled});
         });
         return true; // Required for async sendResponse
+    }
+});
+
+// Add this to background.js if not already present
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'processBatch') {
+        const textBatch = request.textBatch;
+
+        if (!textBatch || !Array.isArray(textBatch)) {
+            sendResponse({ error: 'Invalid batch' });
+            return true;
+        }
+
+        try {
+            // Process each text in the batch
+            const results = textBatch.map(text => {
+                // Special case for "of the" phrases
+                let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
+
+                const fragments = [];
+                let lastIndex = 0;
+                const wordRegex = /\p{L}+/gu;
+                let match;
+
+                while ((match = wordRegex.exec(processedText)) !== null) {
+                    if (match.index > lastIndex) {
+                        fragments.push({
+                            text: processedText.substring(lastIndex, match.index),
+                            isTengwar: false
+                        });
+                    }
+
+                    fragments.push({
+                        text: transcribeToTengwar(match[0], false),
+                        isTengwar: true,
+                        original: match[0]
+                    });
+
+                    lastIndex = match.index + match[0].length;
+                }
+
+                if (lastIndex < processedText.length) {
+                    fragments.push({
+                        text: processedText.substring(lastIndex),
+                        isTengwar: false
+                    });
+                }
+
+                return fragments;
+            });
+
+            sendResponse({ results: results });
+        } catch (error) {
+            sendResponse({ error: error.message });
+        }
+
+        return true; // Keep message channel open
     }
 });
