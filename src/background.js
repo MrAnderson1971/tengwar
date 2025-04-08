@@ -55,54 +55,57 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'processTextNode') {
-        const text = request.text;
+    if (request.action === 'processBatch') {
+        const textBatch = request.textBatch;
 
-        if (!text) {
-            sendResponse({ error: 'No text provided' });
+        if (!textBatch || !Array.isArray(textBatch)) {
+            sendResponse({ error: 'Invalid batch' });
             return true;
         }
 
         try {
-            // Special case for "of the" phrases
-            let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
+            // Process each text in the batch
+            const results = textBatch.map(text => {
+                // Special case for "of the" phrases
+                let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
 
-            const fragments = [];
-            let lastIndex = 0;
-            const wordRegex = /\p{L}+/gu;
-            let match;
+                const fragments = [];
+                let lastIndex = 0;
+                const wordRegex = /\p{L}+/gu;
+                let match;
 
-            while ((match = wordRegex.exec(processedText)) !== null) {
-                // Add text before the current word
-                if (match.index > lastIndex) {
+                while ((match = wordRegex.exec(processedText)) !== null) {
+                    if (match.index > lastIndex) {
+                        fragments.push({
+                            text: processedText.substring(lastIndex, match.index),
+                            isTengwar: false
+                        });
+                    }
+
                     fragments.push({
-                        text: processedText.substring(lastIndex, match.index),
+                        text: transcribeToTengwar(match[0], false),
+                        isTengwar: true,
+                        original: match[0]
+                    });
+
+                    lastIndex = match.index + match[0].length;
+                }
+
+                if (lastIndex < processedText.length) {
+                    fragments.push({
+                        text: processedText.substring(lastIndex),
                         isTengwar: false
                     });
                 }
 
-                fragments.push({
-                    text: transcribeToTengwar(match[0], false),
-                    isTengwar: true,
-                    original: match[0]
-                });
+                return fragments;
+            });
 
-                lastIndex = match.index + match[0].length;
-            }
-
-            // Add any remaining text
-            if (lastIndex < processedText.length) {
-                fragments.push({
-                    text: processedText.substring(lastIndex),
-                    isTengwar: false
-                });
-            }
-
-            sendResponse({ success: true, fragments: fragments });
+            sendResponse({ results: results });
         } catch (error) {
             sendResponse({ error: error.message });
         }
 
-        return true; // Keep the message channel open for the async response
+        return true; // Keep message channel open
     }
 });

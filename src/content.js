@@ -231,16 +231,13 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
-// Add this to your content script
-const nodeProcessingQueue = [];
-let isProcessingQueue = false;
-const MAX_CONCURRENT_REQUESTS = 100; // Process 5 nodes at a time
-let activeRequests = 0;
+// Add to your content script
+const tengwarBatchSize = 20; // Process 20 nodes in one message
+const tengwarNodeQueue = [];
+let isTengwarProcessing = false;
+let tengwarProcessedCount = 0;
 
-/** Process a text node
- *
- * @param {Text} textNode
- */
+// Modified processTextNode to batch nodes
 function processTextNode(textNode) {
     if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
         return;
@@ -253,54 +250,84 @@ function processTextNode(textNode) {
         return;
     }
 
-    // Add to queue instead of processing immediately
-    nodeProcessingQueue.push(textNode);
+    // Store the node info we need
+    tengwarNodeQueue.push({
+        node: textNode,
+        text: textNode.nodeValue,
+        parent: parent
+    });
 
-    // Start queue processing if not already running
-    if (!isProcessingQueue) {
-        isProcessingQueue = true;
-        processNextFromQueue();
+    // Start batch processing if not already running
+    if (!isTengwarProcessing) {
+        isTengwarProcessing = true;
+        setTimeout(processTengwarBatch, 0);
     }
 }
 
-// Process items from the queue
-function processNextFromQueue() {
-    // If we're done or have enough active requests, wait
-    if (nodeProcessingQueue.length === 0) {
-        isProcessingQueue = false;
+// Process nodes in batches
+function processTengwarBatch() {
+    if (tengwarNodeQueue.length === 0) {
+        isTengwarProcessing = false;
+        console.log(`Tengwar processing completed: ${tengwarProcessedCount} nodes processed`);
         return;
     }
 
-    // Process up to MAX_CONCURRENT_REQUESTS at a time
-    while (nodeProcessingQueue.length > 0 && activeRequests < MAX_CONCURRENT_REQUESTS) {
-        const textNode = nodeProcessingQueue.shift();
+    // Take a batch of nodes
+    const nodeBatch = tengwarNodeQueue.splice(0, tengwarBatchSize);
+    const textBatch = nodeBatch.map(item => item.text);
 
-        // Skip if node no longer in DOM
-        if (!textNode.parentNode) {
-            continue;
-        }
-
-        activeRequests++;
-
-        // Process through background
-        const text = textNode.nodeValue;
-        const parent = textNode.parentNode;
-
-        chrome.runtime.sendMessage(
-            { action: 'processTextNode', text: text },
-            response => {
-                activeRequests--;
-
-                // Handle response
-                if (response && response.fragments && response.fragments.length > 0) {
-                    applyFragmentsToNode(textNode, parent, response.fragments);
-                }
-
-                // Continue processing the queue
-                setTimeout(processNextFromQueue, 0);
+    // Process the entire batch in one message
+    chrome.runtime.sendMessage(
+        {
+            action: 'processBatch',
+            textBatch: textBatch
+        },
+        response => {
+            if (!response || response.error) {
+                console.error("Error processing batch:", response?.error || "No response");
+                // Continue with next batch even if there was an error
+                setTimeout(processTengwarBatch, 0);
+                return;
             }
-        );
-    }
+
+            // Apply results to nodes
+            const results = response.results;
+            for (let i = 0; i < nodeBatch.length; i++) {
+                const { node, parent } = nodeBatch[i];
+                const fragments = results[i];
+
+                // Skip if node is no longer in DOM
+                if (!node.parentNode) continue;
+
+                // Create and insert processed content
+                if (fragments && fragments.length > 0) {
+                    const documentFragment = document.createDocumentFragment();
+
+                    fragments.forEach(fragment => {
+                        if (fragment.isTengwar) {
+                            const span = document.createElement('span');
+                            span.className = 'tengwar-text';
+                            span.textContent = fragment.text;
+                            span.setAttribute('data-original', fragment.original);
+                            documentFragment.appendChild(span);
+                        } else {
+                            documentFragment.appendChild(document.createTextNode(fragment.text));
+                        }
+                    });
+
+                    try {
+                        parent.replaceChild(documentFragment, node);
+                        tengwarProcessedCount++;
+                    } catch (e) {
+                        console.error("Error replacing node:", e);
+                    }
+                }
+            }
+
+            // Process next batch with a small delay to keep UI responsive
+            setTimeout(processTengwarBatch, 10);
+        }
+    );
 }
 
 // Helper function to apply fragments to a node
