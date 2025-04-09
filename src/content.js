@@ -179,11 +179,6 @@ function processContent(container) {
                     return NodeFilter.FILTER_REJECT;
                 }
 
-                // Add visibility check for the parent
-                if (!isElementVisible(node.parentElement)) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-
                 return NodeFilter.FILTER_ACCEPT;
             }
         }
