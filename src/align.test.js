@@ -126,7 +126,7 @@ test('scene', () => {
 })
 
 test('pneumonia', () => {
-    expect(transcribeToTengwar('pneumonia')).toBe(tengwarToString('nuumen', 'dot-below', 'malta', 'left-curl', 'nuumen', 'right-curl', 'telco', 'dot', 'telco', 'three-dots'));
+    expect(transcribeToTengwar('pneumonia')).toBe(tengwarToString('nuumen', 'vala', 'acute', 'malta', 'nuumen', 'right-curl', 'telco', 'dot', 'telco', 'three-dots'));
 })
 
 test('unknown', () => {
@@ -135,4 +135,8 @@ test('unknown', () => {
 
 test('acknowledge', () => {
     expect(transcribeToTengwar('acknowledge')).toBe(tengwarToString('quesse', 'three-dots', 'doubler', 'nuumen', 'vala', 'right-curl', 'lambe', 'ando', 'acute', 'ungwe', 'dot-below'));
+})
+
+test('Europe', () => {
+    expect(transcribeToTengwar('Europe')).toBe(tengwarToString('vala', 'acute', 'roomen', 'parma', 'right-curl', 'dot-below'));
 })

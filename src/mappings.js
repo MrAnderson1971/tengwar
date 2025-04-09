@@ -267,7 +267,7 @@ export const vowelPhonemes = [
 // Fallback to known common diphthong letter pairs (O(1))
 export const commonDiphthongs = [
     'ae', 'ai', 'ay', 'au', 'aw',
-    'ea', 'ee', 'ei', 'ey',
+    'ea', 'ee', 'ei', 'ey', 'eu',
     'ie',
     'oa', 'oi', 'oy',
     'ou', 'ow',
