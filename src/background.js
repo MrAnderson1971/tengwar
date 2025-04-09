@@ -1,4 +1,4 @@
-import {transcribeToTengwar} from "./worker";
+import {getFragmentsFromText} from "./content";
 
 chrome.runtime.onInstalled.addListener(function() {
     // Initialize with an empty array of enabled domains instead of a global flag
@@ -66,39 +66,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         try {
             // Process each text in the batch
             const results = textBatch.map(text => {
-                // Special case for "of the" phrases
-                let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
-
-                const fragments = [];
-                let lastIndex = 0;
-                const wordRegex = /\p{L}+/gu;
-                let match;
-
-                while ((match = wordRegex.exec(processedText)) !== null) {
-                    if (match.index > lastIndex) {
-                        fragments.push({
-                            text: processedText.substring(lastIndex, match.index),
-                            isTengwar: false
-                        });
-                    }
-
-                    fragments.push({
-                        text: transcribeToTengwar(match[0], false),
-                        isTengwar: true,
-                        original: match[0]
-                    });
-
-                    lastIndex = match.index + match[0].length;
-                }
-
-                if (lastIndex < processedText.length) {
-                    fragments.push({
-                        text: processedText.substring(lastIndex),
-                        isTengwar: false
-                    });
-                }
-
-                return fragments;
+                return getFragmentsFromText(text);
             });
 
             sendResponse({ results: results });

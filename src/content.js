@@ -1,4 +1,6 @@
 // Track if Tengwar is currently enabled
+import {transcribeToTengwar} from "./worker";
+
 let tengwarEnabled = false;
 let fontInjected = false;
 let currentFont = 'annatar';
@@ -124,7 +126,7 @@ function processPage() {
 
     injectTengwarFont(currentFont);
     // Process initial content
-    processContent(document.body);
+    processContent(document.body, true);
 
     // Set up a MutationObserver to handle dynamic content
     setupMutationObserver();
@@ -163,8 +165,12 @@ function isElementVisible(element) {
     return !element.hasAttribute('hidden');
 }
 
-// Process content within a container element
-function processContent(container) {
+/** Process content within a container element
+ *
+ * @param {Element} container
+ * @param {boolean} isInitial
+ */
+function processContent(container, isInitial) {
     if (!container || isElementToSkip(container)) {
         return;
     }
@@ -194,7 +200,7 @@ function processContent(container) {
         textNodes.push(node);
     }
 
-    textNodes.forEach(processTextNode);
+    textNodes.forEach((item) => processTextNode(item, isInitial));
 }
 
 /** Function to determine if an element should be skipped
@@ -240,15 +246,58 @@ let tengwarProcessedCount = 0;
 const TENGWAR_MAX_PROCESSING_TIME = 50; // ms before yielding to UI thread
 const TENGWAR_UI_REFRESH_DELAY = 16; // ms pause for UI refresh (1 frame @60fps)
 
+/**
+ *
+ * @param {string} text
+ * @returns {{string, boolean, string?}[]}
+ */
+export function getFragmentsFromText(text) {
+    // Special case for "of the" phrases before processing individual words
+    const processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
+    const fragments = [];
+    let lastIndex = 0;
+    const wordRegex = /\p{L}+/gu;
+    let match;
+
+    while ((match = wordRegex.exec(processedText)) !== null) {
+        // Add text before the current word
+        if (match.index > lastIndex) {
+            fragments.push({
+                text: processedText.substring(lastIndex, match.index),
+                isTengwar: false
+            });
+        }
+
+        fragments.push({
+            text: transcribeToTengwar(match[0], false),
+            isTengwar: true,
+            original: match[0]
+        });
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add any remaining text
+    if (lastIndex < processedText.length) {
+        fragments.push({
+            text: processedText.substring(lastIndex),
+            isTengwar: false
+        });
+    }
+    return fragments;
+}
+
 /** Process a text node
  *
  * @param {Text} textNode
+ * @param {boolean} isInitial
  */
-function processTextNode(textNode) {
+function processTextNode(textNode, isInitial) {
     if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
         return;
     }
 
+    const text = textNode.nodeValue;
     const parent = textNode.parentNode;
 
     // Skip if already processed
@@ -256,18 +305,52 @@ function processTextNode(textNode) {
         return;
     }
 
-    // Add to queue
-    tengwarNodeQueue.push({
-        node: textNode,
-        text: textNode.nodeValue,
-        parent: parent
-    });
+    if (isInitial) {
+        // Add to queue
+        tengwarNodeQueue.push({
+            node: textNode,
+            text: textNode.nodeValue,
+            parent: parent
+        });
 
-    // Start processing if not already running
-    if (!tengwarProcessingActive) {
-        tengwarProcessingActive = true;
-        processTengwarBatchWithYield();
+        // Start processing if not already running
+        if (!tengwarProcessingActive) {
+            tengwarProcessingActive = true;
+            processTengwarBatchWithYield();
+        }
+    } else {
+        const fragments = getFragmentsFromText(text);
+
+        // If we have fragments to process
+        if (fragments.length > 0) {
+            // Create fragment to hold the new content
+            const documentFragment = handleFragments(fragments);
+
+            // Replace the original node with our fragment
+            try {
+                parent.replaceChild(documentFragment, textNode);
+            } catch (e) {
+                console.error("Error replacing node:", e);
+            }
+        }
     }
+}
+
+function handleFragments(fragments) {
+    const documentFragment = document.createDocumentFragment();
+
+    fragments.forEach(fragment => {
+        if (fragment.isTengwar) {
+            const span = document.createElement('span');
+            span.className = 'tengwar-text';
+            span.textContent = fragment.text;
+            span.setAttribute('data-original', fragment.original);
+            documentFragment.appendChild(span);
+        } else {
+            documentFragment.appendChild(document.createTextNode(fragment.text));
+        }
+    });
+    return documentFragment;
 }
 
 // Process as many nodes as possible within the time limit
@@ -337,19 +420,7 @@ function processTengwarBatchWithYield() {
 
                 // Create and insert processed content
                 if (fragments && fragments.length > 0) {
-                    const documentFragment = document.createDocumentFragment();
-
-                    fragments.forEach(fragment => {
-                        if (fragment.isTengwar) {
-                            const span = document.createElement('span');
-                            span.className = 'tengwar-text';
-                            span.textContent = fragment.text;
-                            span.setAttribute('data-original', fragment.original);
-                            documentFragment.appendChild(span);
-                        } else {
-                            documentFragment.appendChild(document.createTextNode(fragment.text));
-                        }
-                    });
+                    const documentFragment = handleFragments(fragments);
 
                     try {
                         nodeData.parent.replaceChild(documentFragment, nodeData.node);
@@ -428,7 +499,7 @@ function setupMutationObserver() {
         });
 
         // Process nodes in one batch
-        nodesToProcess.forEach(processContent);
+        nodesToProcess.forEach((item) => processContent(item, false));
     });
 
     observer.observe(document.body, {
