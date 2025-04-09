@@ -291,7 +291,9 @@ function processTengwarBatchWithYield() {
         const nodeData = tengwarNodeQueue[tengwarProcessingIndex++];
 
         // Skip nodes no longer in DOM
-        if (!nodeData.node.parentNode) continue;
+        if (!nodeData.node.parentNode) {
+            continue;
+        }
 
         nodesToProcess.push(nodeData);
         textsToProcess.push(nodeData.text);
@@ -398,30 +400,23 @@ function setupMutationObserver() {
             if (mutation.type === 'childList') {
                 // Handle new nodes being added
                 mutation.addedNodes.forEach(function (node) {
-                    if (node.nodeType === Node.ELEMENT_NODE && !isElementToSkip(node)) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
                         nodesToProcess.add(node);
                     }
                 });
             } else if (mutation.type === 'attributes') {
-                // For attribute changes that might affect visibility
                 const target = mutation.target;
 
                 // Only process if it's an element
                 if (target.nodeType === Node.ELEMENT_NODE) {
-                    // Check if the element or any of its children might need processing
-                    const wasHidden = target.hasAttribute('data-tengwar-was-hidden');
-                    const isVisible = isElementVisible(target);
-
-                    // If element transitioned from hidden to visible
-                    if (wasHidden && isVisible) {
-                        target.removeAttribute('data-tengwar-was-hidden');
-                        if (!isElementToSkip(target)) {
-                            nodesToProcess.add(target);
-                        }
-                    }
-                    // If element is now hidden, mark it for future reference
-                    else if (!isVisible) {
-                        target.setAttribute('data-tengwar-was-hidden', 'true');
+                    nodesToProcess.add(target);
+                }
+            } else if (mutation.type === 'characterData') {
+                // Process text content changes
+                if (mutation.target.nodeType === Node.TEXT_NODE) {
+                    const parent = mutation.target.parentElement;
+                    if (parent && !isElementToSkip(parent)) {
+                        processTextNode(mutation.target);
                     }
                 }
             }
