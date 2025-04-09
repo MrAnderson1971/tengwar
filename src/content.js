@@ -130,39 +130,6 @@ function processPage() {
     setupMutationObserver();
 }
 
-/**
- *
- * @param {Element} element
- * @returns {boolean}
- */
-function isElementVisible(element) {
-    if (!element) {
-        return false;
-    }
-
-    // Get computed style
-    const style = window.getComputedStyle(element);
-
-    // Check basic visibility properties
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        return false;
-    }
-
-    // Check for zero dimensions (often indicates hidden elements)
-    const rect = element.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-        return false;
-    }
-
-    // Check aria-hidden attribute
-    if (element.getAttribute('aria-hidden') === 'true') {
-        return false;
-    }
-
-    // Check for hidden attribute
-    return !element.hasAttribute('hidden');
-}
-
 // Process content within a container element
 function processContent(container) {
     if (!container || isElementToSkip(container)) {
@@ -446,7 +413,9 @@ function initializeTengwar() {
     // }
     try {
         // Ensure runs only once
-        if (window.tengwarInitialized) return;
+        if (window.tengwarInitialized) {
+            return;
+        }
         window.tengwarInitialized = true;
 
         const currentDomain = window.location.hostname;
