@@ -140,3 +140,15 @@ test('acknowledge', () => {
 test('Europe', () => {
     expect(transcribeToTengwar('Europe')).toBe(tengwarToString('vala', 'acute', 'roomen', 'parma', 'right-curl', 'dot-below'));
 })
+
+test('employee', () => {
+    expect(transcribeToTengwar('employee')).toBe(tengwarToString('parma', 'nasalizer', 'acute', 'lambe', 'anna', 'right-curl', 'telco', 'acute', 'dot-below'));
+})
+
+test('tree', () => {
+    expect(transcribeToTengwar('tree')).toBe(tengwarToString('tinco', 'roomen', 'telco', 'acute', 'dot-below'));
+})
+
+test('ongoing', () => {
+    expect(transcribeToTengwar('ongoing')).toBe(tengwarToString('nuumen', 'right-curl', 'ungwe', 'telco', 'right-curl', 'nwalme', 'dot'));
+})

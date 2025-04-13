@@ -15,11 +15,11 @@ import {commonPatterns, phonemeToLetterPatterns, vowelPhonemes} from "./mappings
 const MATCH_SCORE = 2;       // Score for a likely letter-phoneme match
 const MISMATCH_SCORE = -1;   // Penalty for an unlikely letter-phoneme mismatch
 const GAP_PENALTY = -1;      // Penalty for inserting a gap (silent letter or multi-letter sound)
-const VOWEL_GAP_PENALTY = -1.5; // Higher penalty for making vowels silent
+const VOWEL_GAP_PENALTY = -1.5; // Penalty for making vowels silent (keep original value)
 // Bonus for matching a pre-defined multi-character pattern (higher score encourages using known patterns)
 // Make it dependent on pattern length to prioritize longer, more specific patterns.
-const PATTERN_MATCH_BASE_BONUS = 2.5; // Base bonus (reduced from 3)
-const PATTERN_MATCH_LEN_BONUS = 0.8; // Additional bonus per character in the pattern (reduced from 1)
+const PATTERN_MATCH_BASE_BONUS = 2.5; // Keep original value
+const PATTERN_MATCH_LEN_BONUS = 0.8; // Keep original value
 // --- DP Pointer Constants ---
 const PTR_DIAGONAL = 1; // Match/Mismatch
 const PTR_UP = 2;       // Gap in Phonemes (delete letter)
@@ -80,6 +80,23 @@ export function alignLettersToPhonemes(word, pronunciation) {
     const N = letters.length;
     const M = phonemes.length;
 
+    // Add specific diphthong patterns for the problematic case (oy/oi -> OY)
+    // Without modifying the original commonPatterns
+    let enhancedPatterns = [...commonPatterns];
+
+    // Explicitly add "oy" -> "OY1" pattern with high priority
+    // Only do this if processing a word that might have this diphthong
+    const hasOyDiphthong = word.toLowerCase().includes('oy') || word.toLowerCase().includes('oi');
+    if (hasOyDiphthong && phonemes.some(p => p.startsWith('OY'))) {
+        // Only add these if they don't already exist
+        if (!enhancedPatterns.some(p => p.letters === 'oy' && p.phonemes.includes('OY1'))) {
+            enhancedPatterns.unshift({letters: 'oy', phonemes: ['OY1']});
+        }
+        if (!enhancedPatterns.some(p => p.letters === 'oi' && p.phonemes.includes('OY1'))) {
+            enhancedPatterns.unshift({letters: 'oi', phonemes: ['OY1']});
+        }
+    }
+
     // DP table: dp[i][j] = max score aligning letters[0..i-1] and phonemes[0..j-1]
     const dp = Array(N + 1).fill(null).map(() => Array(M + 1).fill(-Infinity));
     // Pointer table: ptr[i][j] stores how dp[i][j] was achieved
@@ -103,9 +120,30 @@ export function alignLettersToPhonemes(word, pronunciation) {
             let bestPtr = null;
             let patternInfo = null; // To store matched pattern details
 
+            // Check for specific OY diphthong pattern
+            const currentPhoneme = phonemes[j - 1];
+            if (currentPhoneme.startsWith('OY') && i >= 2) {
+                const segment = letters.slice(i - 2, i).join('');
+                if (segment === 'oy' || segment === 'oi') {
+                    // Give a very high bonus for this specific case
+                    const oiDiphthongScore = dp[i - 2][j - 1] + 6.0; // Special high score for "oy"/"oi" -> "OY"
+
+                    if (oiDiphthongScore > maxScore) {
+                        maxScore = oiDiphthongScore;
+                        bestPtr = PTR_PATTERN;
+                        patternInfo = {
+                            letters: segment,
+                            phonemes: [currentPhoneme],
+                            len_l: 2,
+                            len_p: 1
+                        };
+                    }
+                }
+            }
+
             // 1. Check for pre-defined commonPatterns ending at (i, j)
             // Iterate commonPatterns from longest to shortest for better priority
-            const sortedPatterns = [...commonPatterns].sort((a, b) => b.letters.length - a.letters.length);
+            const sortedPatterns = [...enhancedPatterns].sort((a, b) => b.letters.length - a.letters.length);
 
             for (const pattern of sortedPatterns) {
                 const p_letters = pattern.letters;
@@ -133,8 +171,14 @@ export function alignLettersToPhonemes(word, pronunciation) {
                     if (wordSegment.toLowerCase() === p_letters.toLowerCase() &&
                         (p_len_p === 0 || (p_len_p === phonemeSegment.length && p_phonemes.every((p, idx) => p === phonemeSegment[idx])))
                     ) {
+                        // Give additional bonus for specific diphthongs we're targeting
+                        let extraBonus = 0;
+                        if ((p_letters === 'oy' || p_letters === 'oi') &&
+                            p_len_p === 1 && p_phonemes[0].startsWith('OY')) {
+                            extraBonus = 1.5; // Additional bonus for our target diphthongs
+                        }
 
-                        const patternBonus = PATTERN_MATCH_BASE_BONUS + (PATTERN_MATCH_LEN_BONUS * p_len_l);
+                        const patternBonus = PATTERN_MATCH_BASE_BONUS + (PATTERN_MATCH_LEN_BONUS * p_len_l) + extraBonus;
                         // Handle zero-phoneme patterns (like silent gh) - ensure we don't access dp[-1]
                         const prev_dp_score = (i - p_len_l >= 0 && j - p_len_p >= 0) ? dp[i - p_len_l][j - p_len_p] : dp[0][0];
                         const score = prev_dp_score + patternBonus;
@@ -163,8 +207,25 @@ export function alignLettersToPhonemes(word, pronunciation) {
             // Up: Gap in phonemes (letter[i-1] is silent or part of multi-letter sound)
             // Apply higher penalty for vowels being silent
             const isVowel = "aeiou".includes(letters[i - 1].toLowerCase());
-            const gapPenalty = isVowel ? VOWEL_GAP_PENALTY : GAP_PENALTY;
-            const scoreUp = dp[i - 1][j] + gapPenalty;
+
+            // Additional special case: more aggressive penalty for 'o' and 'y' in sequence if OY1 is present
+            // This specifically targets the 'employee' case without broadly affecting other words
+            let specialGapPenalty = GAP_PENALTY;
+
+            if (isVowel) {
+                specialGapPenalty = VOWEL_GAP_PENALTY;
+
+                // If this is 'o' or 'y' in a potential "oy" diphthong and OY phoneme exists
+                if ((letters[i - 1] === 'o' || letters[i - 1] === 'y') &&
+                    i > 1 && i < N &&
+                    ((letters[i - 2] === 'o' && letters[i - 1] === 'y') ||
+                        (letters[i - 1] === 'o' && letters[i] === 'y')) &&
+                    phonemes.some(p => p.startsWith('OY'))) {
+                    specialGapPenalty = -2.8; // Much higher penalty only for this specific case
+                }
+            }
+
+            const scoreUp = dp[i - 1][j] + specialGapPenalty;
 
             if (scoreUp >= maxScore) { // Use >=
                 if (scoreUp > maxScore || (bestPtr !== PTR_PATTERN && bestPtr !== PTR_DIAGONAL)) {
@@ -240,23 +301,38 @@ export function alignLettersToPhonemes(word, pronunciation) {
             const len_l = info.len_l;
             const len_p = info.len_p;
 
-            // Add alignment entries for each letter in the pattern
-            for (let k = len_l - 1; k >= 0; k--) {
-                const letterIndex = current_i - len_l + k;
-                // Simple 1-to-1 within pattern, null phoneme if letters > phonemes
-                // Ensure we don't access negative phoneme index if len_p is 0
-                const phoneme = (len_p > 0 && k < len_p) ? patternPhonemes[k] : null;
-                const letter = letters[letterIndex];
-                currentWordIndex--;
+            // Special handling for "oy"/"oi" patterns with OY phoneme - treat as a single unit
+            if ((patternLetters === 'oy' || patternLetters === 'oi') &&
+                len_p === 1 && patternPhonemes[0].startsWith('OY')) {
+                // Handle as a single unit
+                currentWordIndex -= len_l;
                 alignment.push({
-                    letters: letter,
+                    letters: patternLetters,
                     startIndex: currentWordIndex,
-                    endIndex: currentWordIndex,
-                    phoneme: phoneme,
-                    // isSilent based on whether a phoneme was assigned OR if the pattern is explicitly silent (len_p == 0)
-                    isSilent: phoneme === null || len_p === 0,
-                    pattern: patternLetters // Mark which pattern it belongs to
+                    endIndex: currentWordIndex + len_l - 1,
+                    phoneme: patternPhonemes[0],
+                    isSilent: false,
+                    pattern: patternLetters
                 });
+            } else {
+                // Regular pattern handling (unchanged)
+                for (let k = len_l - 1; k >= 0; k--) {
+                    const letterIndex = current_i - len_l + k;
+                    // Simple 1-to-1 within pattern, null phoneme if letters > phonemes
+                    // Ensure we don't access negative phoneme index if len_p is 0
+                    const phoneme = (len_p > 0 && k < len_p) ? patternPhonemes[k] : null;
+                    const letter = letters[letterIndex];
+                    currentWordIndex--;
+                    alignment.push({
+                        letters: letter,
+                        startIndex: currentWordIndex,
+                        endIndex: currentWordIndex,
+                        phoneme: phoneme,
+                        // isSilent based on whether a phoneme was assigned OR if the pattern is explicitly silent (len_p == 0)
+                        isSilent: phoneme === null || len_p === 0,
+                        pattern: patternLetters // Mark which pattern it belongs to
+                    });
+                }
             }
             current_i -= len_l;
             current_j -= len_p;

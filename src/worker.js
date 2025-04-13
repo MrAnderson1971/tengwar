@@ -687,7 +687,8 @@ export function transcribeToTengwar(word, debug = true) {
     }
 
     // Handle silent e at the end of words
-    if (hasSilentEImproved(processedText, processedText.length - 1, pronunciation, alignment)) {
+    if (hasSilentEImproved(processedText, processedText.length - 1, pronunciation, alignment) &&
+        result.at(-1) !== tengwarMap['dot-below']) {
         result.push(tengwarMap['dot-below']);
     } else if (vowelOnTop) {
         if (vowelOnTop !== tengwarMap['two-dots-below']) { // no carrier for y
