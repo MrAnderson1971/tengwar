@@ -240,7 +240,9 @@ export const commonPatterns = [
     {letters: 'rr', phonemes: ['R']},
     {letters: 'ss', phonemes: ['S']},
     {letters: 'tt', phonemes: ['T']},
-    {letters: 'zz', phonemes: ['Z']}
+    {letters: 'zz', phonemes: ['Z']},
+
+    {letters: 'iou', phonemes: ['IY0', 'AH0']},
 ];
 
 export const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)[0-9]?/;

@@ -386,23 +386,46 @@ function getPronunciation(word) {
     return pronunciation;
 }
 
-// Get diphthong type based on second vowel
+/** Get diphthong type based on second vowel
+ *
+ * @param {string} word
+ * @param {number} position
+ * @returns {string}
+ */
 function getDiphthongType(word, position) {
     return word[position + 1].toLowerCase();
 }
 
-// Handle diphthongs based on the rules:
-// xa = x as diacritic + osse
-// xe = x as diacritic + telco + dot underneath
-// xi = treat i as consonant y
-// xu = treat u as consonant w
-// xo = use telco with first vowel diacritic + right-curl for 'o'
-function handleDiphthong(word, position, result) {
+/** Handle diphthongs based on the rules:
+ xa = x as diacritic + osse
+ xe = x as diacritic + telco + dot underneath
+ xi = treat i as consonant y
+ xu = treat u as consonant w
+ xo = use telco with first vowel diacritic + right-curl for 'o'
+ @param {string} word
+ @param {number} position
+ @param {string[]} result
+ @param {string|null} vowelOnTop
+ @return {number}
+ */
+function handleDiphthong(word, position, result, vowelOnTop) {
     const char = word[position].toLowerCase();
     const diphthongType = getDiphthongType(word, position);
 
     // Store current diacritic for first vowel
     const firstVowelTehta = englishToTengwar[char].tehta;
+
+    switch (diphthongType) {
+        case 'a':
+        case 'e':
+        case 'i':
+        case 'o':
+        case 'u':
+            if (vowelOnTop !== null) {
+                result.push(tengwarMap['telco']);
+                result.push(vowelOnTop);
+            }
+    }
 
     switch (diphthongType) {
         case 'a':
@@ -526,7 +549,7 @@ export function transcribeToTengwar(word, debug = true) {
         }
         // Check for diphthongs
         if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation, alignment)) {
-            const charsToSkip = handleDiphthong(processedText, i, result);
+            const charsToSkip = handleDiphthong(processedText, i, result, vowelOnTop);
             if (charsToSkip > 0) {
                 i += charsToSkip;
                 vowelOnTop = null; // Reset vowel since we've handled it

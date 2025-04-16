@@ -152,3 +152,7 @@ test('tree', () => {
 test('ongoing', () => {
     expect(transcribeToTengwar('ongoing')).toBe(tengwarToString('nuumen', 'right-curl', 'ungwe', 'telco', 'right-curl', 'nwalme', 'dot'));
 })
+
+test('mysterious', () => {
+    expect(transcribeToTengwar('mysterious')).toBe(tengwarToString('malta', 'two-dots-below', 'silme', 'tinco', 'roomen', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'));
+})
