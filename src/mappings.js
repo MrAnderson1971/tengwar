@@ -182,7 +182,6 @@ export const commonPatterns = [
     {letters: 's', phonemes: ['Z']},
     {letters: 'es', phonemes: ['IH0', 'Z']},
     {letters: 'ly', phonemes: ['L', 'IY0']},
-    {letters: 'ally', phonemes: ['AH0', 'L', 'IY0']},
     {letters: 'ment', phonemes: ['M', 'AH0', 'N', 'T']},
     {letters: 'tion', phonemes: ['SH', 'AH0', 'N']},
     {letters: 'sion', phonemes: ['ZH', 'AH0', 'N']},

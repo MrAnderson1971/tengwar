@@ -156,3 +156,7 @@ test('ongoing', () => {
 test('mysterious', () => {
     expect(transcribeToTengwar('mysterious')).toBe(tengwarToString('malta', 'two-dots-below', 'silme', 'tinco', 'roomen', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'));
 })
+
+test('finally', () => {
+    expect(transcribeToTengwar('finally')).toBe(tengwarToString('formen', 'nuumen', 'dot', 'lambe', 'three-dots', 'doubler', 'two-dots-below'));
+})
