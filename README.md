@@ -4,7 +4,10 @@ Ash nazg durbatuluk, ash nazg gimbatul
 
 Ash nazg thrakatuluk agh burzum-ishi krimpatul
 
+### Manual build and installation
 ```
 npm i
 npx webpack
 ```
+
+Then go to chrome://extensions, select "Load Unpacked" and select the tengwar/dist folder.
