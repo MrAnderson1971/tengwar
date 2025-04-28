@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function () {
             // Load current settings
             chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data) {
                 const enabledDomains = data.tengwarEnabledDomains || [];
-                console.log(enabledDomains);
                 checkbox.checked = enabledDomains.includes(domain);
                 fontSelect.value = data.tengwarFont || 'annatar';
             });

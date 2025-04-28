@@ -396,21 +396,7 @@ function setupMutationObserver() {
     });
 }
 
-// Check initial Tengwar status when extension loads
-chrome.storage.sync.get(['tengwarEnabled', 'tengwarFont'], function (data) {
-    if (data.tengwarEnabled) {
-        tengwarEnabled = true;
-        injectTengwarFont(data.tengwarFont || 'annatar');
-        processPage();
-    }
-});
-
 function initializeTengwar() {
-    // Prevent running on frames like ads?
-    // if (window.self !== window.top) {
-    //     console.log("Tengwar skipping non-top frame:", window.location.href);
-    //     return;
-    // }
     try {
         // Ensure runs only once
         if (window.tengwarInitialized) {
