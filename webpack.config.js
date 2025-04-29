@@ -6,7 +6,8 @@ module.exports = {
     entry: {
         content: './src/content.js',
         background: './src/background.js',
-        popup: './src/popup.js'
+        popup: './src/popup.js',
+        'dom-patcher': './src/dom-patcher.js',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),

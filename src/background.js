@@ -1,8 +1,11 @@
 import {transcribeToTengwar} from "./worker";
 
 chrome.runtime.onInstalled.addListener(function() {
-    // Initialize with an empty array of enabled domains instead of a global flag
-    chrome.storage.sync.set({tengwarEnabledDomains: []});
+    chrome.storage.sync.get('tengwarEnabledDomains', function(data) {
+        if (data.tengwarEnabledDomains === undefined) {
+            chrome.storage.sync.set({tengwarEnabledDomains: []});
+        }
+    });
 });
 
 // Listen for tab updates to inform content scripts about their status
@@ -29,10 +32,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
                     action: 'updateTengwarStatus',
                     enabled: isEnabled,
                     font: font
-                }).catch(() => {
-                    // This can fail if the content script isn't ready yet - that's normal
-                    console.log('Content script not ready for tab', tabId);
-                });
+                }).catch(() => {});
             });
         } catch (error) {
             console.error('Error processing tab URL:', error);

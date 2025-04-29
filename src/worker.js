@@ -495,7 +495,12 @@ function isMonophthongEau(word, position, pronunciation, alignment) {
     return alignment1?.phoneme === null && alignment2?.phoneme === null && /OW/.test(alignment3?.phoneme);
 }
 
-// Update the transcribeToTengwar function by modifying the handling of 'e'
+/**
+ *
+ * @param {string} word
+ * @param {boolean} debug
+ * @return {string}
+ */
 export function transcribeToTengwar(word, debug = true) {
     if (cache.has(word)) {
         return cache.get(word);
