@@ -6,7 +6,7 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "watch": "webpack --watch --config webpack.config.js",
-    "test": "jest src/align.test.js"
+    "test": "jest src/worker.test.js"
   },
   "author": "",
   "license": "MIT",

@@ -46,12 +46,24 @@ function getSingleScore(letter, phoneme) {
     }
 
     // Add common phonetic equivalents that might not be in the simple map
-    if ((letter === 'f' || letter === 'ph') && basePhoneme === 'F') return MATCH_SCORE;
-    if ((letter === 'k' || letter === 'c' || letter === 'q') && basePhoneme === 'K') return MATCH_SCORE;
-    if (letter === 's' && basePhoneme === 'S') return MATCH_SCORE;
-    if (letter === 'c' && basePhoneme === 'S') return MATCH_SCORE - 1; // Less likely than 's' but possible soft C
-    if (letter === 'z' && basePhoneme === 'Z') return MATCH_SCORE;
-    if (letter === 's' && basePhoneme === 'Z') return MATCH_SCORE - 1; // Less likely than 'z'
+    if ((letter === 'f' || letter === 'ph') && basePhoneme === 'F') {
+        return MATCH_SCORE;
+    }
+    if ((letter === 'k' || letter === 'c' || letter === 'q') && basePhoneme === 'K') {
+        return MATCH_SCORE;
+    }
+    if (letter === 's' && basePhoneme === 'S') {
+        return MATCH_SCORE;
+    }
+    if (letter === 'c' && basePhoneme === 'S') {
+        return MATCH_SCORE - 1;
+    } // Less likely than 's' but possible soft C
+    if (letter === 'z' && basePhoneme === 'Z') {
+        return MATCH_SCORE;
+    }
+    if (letter === 's' && basePhoneme === 'Z') {
+        return MATCH_SCORE - 1;
+    } // Less likely than 'z'
 
     // Basic vowel check (less reliable, but better than nothing)
     const vowels = "aeiou";
