@@ -22,4 +22,16 @@ Element.prototype.replaceChild = function(newChild, oldChild) {
     }
 };
 
+// Add insertBefore override for consistency
+const originalInsertBefore = Element.prototype.insertBefore;
+
+Element.prototype.insertBefore = function(newNode, referenceNode) {
+    try {
+        return originalInsertBefore.call(this, newNode, referenceNode);
+    } catch(e) {
+        console.warn("insertBefore failed, reference node may no longer exist in the document");
+        return newNode;
+    }
+};
+
 console.log("DOM patching applied");
