@@ -1,3 +1,11 @@
+export function tengwarToString(...tengwar) {
+    let output = "";
+    for (const tengwa of tengwar) {
+        output += tengwarMap[tengwa];
+    }
+    return output;
+}
+
 // Mapping based on the actual characters from the compiled LaTeX document
 // This maps LaTeX commands to their corresponding characters in the Annatar font
 export const tengwarMap = {
@@ -124,6 +132,9 @@ export const specialWords = {
     'and': tengwarMap['ando'] + tengwarMap['nasalizer'],
     'ofthe': tengwarMap['extended-umbar'] + tengwarMap['doubler'],
     'tengwar': tengwarMap['tinco'] + tengwarMap['nwalme'] + tengwarMap['acute'] + tengwarMap['vala'] + tengwarMap['oore'] + tengwarMap['three-dots'],
+    'firearm': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta'),
+    'firearms': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta', 'esse-nuquerna'),
+    'rwanda': tengwarToString('roomen', 'nwale', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'),
 };
 
 // Individual phoneme patterns

@@ -1,13 +1,5 @@
-import {tengwarMap} from "./mappings";
+import {tengwarToString} from "./mappings";
 import {transcribeToTengwar} from "./worker";
-
-function tengwarToString(...tengwar) {
-    let output = "";
-    for (const tengwa of tengwar) {
-        output += tengwarMap[tengwa];
-    }
-    return output;
-}
 
 test("account", () => {
     expect(transcribeToTengwar("account")).toBe(tengwarToString("quesse", "three-dots", "doubler", "vala", "right-curl", "tinco", "nasalizer"));
@@ -159,4 +151,12 @@ test('mysterious', () => {
 
 test('finally', () => {
     expect(transcribeToTengwar('finally')).toBe(tengwarToString('formen', 'nuumen', 'dot', 'lambe', 'three-dots', 'doubler', 'two-dots-below'));
+})
+
+test('firearm', () => {
+    expect(transcribeToTengwar('firearm')).toBe(tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta'));
+})
+
+test('Rwanda', () => {
+    expect(transcribeToTengwar("Rwanda")).toBe(tengwarToString('roomen', 'nwale', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'))
 })
