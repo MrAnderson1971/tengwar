@@ -1,11 +1,5 @@
 // Helper functions for heuristics (fallbacks)
-import {
-    commonDiphthongs,
-    englishToTengwar,
-    specialWords,
-    tengwarMap,
-    vowelPhonemePatterns,
-} from "./mappings";
+import {commonDiphthongs, englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
 import {dictionary} from "cmu-pronouncing-dictionary";
 import {alignLettersToPhonemes} from "./align";
 import translate from "british_american_translate";
@@ -252,12 +246,12 @@ function isPostvocalicR(word, position, pronunciation, alignmentByIndex) {
         return isPostvocalicR(word, position + 1, pronunciation, alignmentByIndex); // double R - do whatever the next R is
     }
 
-    if (vowelPhonemePatterns.test(alignmentByIndex[position + 1]?.phoneme)) {
-        return false;
+    if (/[bcdfgjklmnpqstvwxz]/.test(word[position + 1])) {
+        return true; // consonant that's not [hr] or "undefined"
     }
 
-    if (word[position + 1] === 'h' && /^R[0-9]?$/.test(alignment?.phoneme)) {
-        return isPostvocalicR(word, position + 1, pronunciation, alignmentByIndex);
+    if (word[position + 1] === 'h' && alignment?.phoneme === null) {
+        return isPostvocalicR(word, position + 2, pronunciation, alignmentByIndex);
     }
 
     if (word[position + 1] === 'e') {
@@ -266,7 +260,7 @@ function isPostvocalicR(word, position, pronunciation, alignmentByIndex) {
                 hasSilentEImproved(word, position + 1, pronunciation, alignmentByIndex));
     }
 
-    return true; // is consonant
+    return false; // is consonant
 }
 
 // Improved detection of silent E
@@ -357,6 +351,7 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
         }
 
         // If both vowels have their OWN vowel phonemes, they are likely separate syllables.
+        const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)/;
         if (firstVowelPhoneme && secondVowelPhoneme &&
             vowelPhonemePatterns.test(firstVowelPhoneme.replace(/[0-9]$/, '')) &&
             vowelPhonemePatterns.test(secondVowelPhoneme.replace(/[0-9]$/, ''))) {
