@@ -519,19 +519,11 @@ export function transcribeToTengwar(word, debug = true) {
 
     if (alignmentNaive) {
         for (const entry of alignmentNaive) {
-            // Ensure the entry has a valid startIndex within the word bounds
             if (entry.startIndex >= 0 && entry.startIndex < processedText.length) {
-                // Simple case: Assign the entry to its starting index.
-                // If multiple entries share a startIndex (e.g., if aligner grouped letters),
-                // this might need refinement, but the current aligner aims for 1 per letter.
-                if (alignment[entry.startIndex] === null) { // Prefer the first entry if duplicates somehow occur
+                if (alignment[entry.startIndex] === null) {
                     alignment[entry.startIndex] = entry;
                 }
             }
-            // Note: This assumes alignLettersToPhonemes provides start/end indices
-            // correctly mapping letters to phonemes. If a single phoneme maps
-            // to multiple letters (like 'sh' -> 'SH'), this simple mapping works.
-            // If multiple phonemes map to one letter, the first phoneme mapping is stored.
         }
     }
     if (debug) {
@@ -552,12 +544,13 @@ export function transcribeToTengwar(word, debug = true) {
             i += 3;
             continue;
         }
+
         // Check for diphthongs
         if ('aeiou'.includes(char) && isDiphthong(processedText, i, pronunciation, alignment)) {
             const charsToSkip = handleDiphthong(processedText, i, result, vowelOnTop);
             if (charsToSkip > 0) {
                 i += charsToSkip;
-                vowelOnTop = null; // Reset vowel since we've handled it
+                vowelOnTop = null;
                 found = true;
                 continue;
             }
@@ -585,13 +578,31 @@ export function transcribeToTengwar(word, debug = true) {
                     i += 2;
                     found = true;
                     break;
+                } else if (ngram === 'nch') {
+                    // SPECIAL CASE: Don't treat 'nch' as one unit if there's a preceding vowel that should attach to 'n'
+                    // Check if there's a vowel waiting to attach
+                    if (vowelOnTop) {
+                        // Break down nch: process 'n' with vowel, then 'ch' separately
+                        result.push(englishToTengwar['n'].char);  // Add 'n'
+                        // Vowel will be added at end of loop
+                        i += 1; // Move past 'n', let 'ch' be processed in next iteration
+                        found = true;
+                        break;
+                    } else {
+                        // No pending vowel, treat as normal nch
+                        result.push(englishToTengwar['nch'].char);
+                        i += 3;
+                        found = true;
+                        break;
+                    }
                 } else if (englishToTengwar[ngram] && englishToTengwar[ngram].char) {
-                    if (ngram === 'nt' && i + 2 < processedText.length && processedText[i + 2] === 'h') { // nth case
+                    if (ngram === 'nt' && i + 2 < processedText.length && processedText[i + 2] === 'h') {
                         break;
                     }
-                    if (ngram === 'mp' && i + 2 < processedText.length && processedText[i + 2] === 'h') { // mph case
+                    if (ngram === 'mp' && i + 2 < processedText.length && processedText[i + 2] === 'h') {
                         break;
                     }
+
                     result.push(englishToTengwar[ngram].char);
                     i += len;
                     found = true;
@@ -601,11 +612,7 @@ export function transcribeToTengwar(word, debug = true) {
         }
 
         if (!found) {
-            /*
-            Not a vowel
-            CK
-            If both are C both pronunciations match
-            */
+            // Handle doubled consonants
             if (!'aeiou'.includes(processedText[i]) && i > 0 && (processedText[i] === processedText[i - 1] ||
                     processedText[i] === 'k' && processedText[i - 1] === 'c') &&
                 !(processedText[i] === 'c' && processedText[i - 1] === 'c' &&
@@ -625,15 +632,13 @@ export function transcribeToTengwar(word, debug = true) {
                         vowelOnTop = englishToTengwar[char].tehta;
                         i++;
                         continue;
+
                     case 'e':
-                        // Check if this 'e' is silent in the middle of the word
                         if (i < processedText.length - 1 && isSilentEInMiddle(processedText, i, pronunciation, alignment)) {
-                            // For silent 'e' in the middle of a word, add a dot-below
                             result.push(tengwarMap['dot-below']);
                             i++;
                             break;
                         }
-                        // Otherwise, treat as a normal vowel
                         if (vowelOnTop) {
                             result.push(tengwarMap['telco']);
                             result.push(vowelOnTop);
@@ -642,24 +647,21 @@ export function transcribeToTengwar(word, debug = true) {
                         vowelOnTop = englishToTengwar[char].tehta;
                         i++;
                         continue;
+
                     case 'c':
-                        // Use improved soft c detection
                         if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
-                            // Soft c: use silme-nuquerna
                             result.push(tengwarMap['silme-nuquerna']);
                         } else {
-                            // Hard c: use quesse
                             result.push(englishToTengwar['c'].char);
                         }
                         i++;
                         break;
+
                     case 'y':
-                        // Use improved consonantal y detection
                         if (isConsonantYImproved(processedText, i, pronunciation)) {
                             result.push(englishToTengwar['y'].char);
                             i++;
                         } else {
-                            // Use improved vowel y type detection
                             const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
                             if (vowelOnTop) {
                                 result.push(tengwarMap['telco']);
@@ -676,8 +678,8 @@ export function transcribeToTengwar(word, debug = true) {
                             i++;
                         }
                         break;
+
                     case 'r':
-                        // Use improved hard r detection
                         if (isPostvocalicR(processedText, i, pronunciation, alignment)) {
                             result.push(tengwarMap['oore']);
                         } else {
@@ -685,6 +687,7 @@ export function transcribeToTengwar(word, debug = true) {
                         }
                         i++;
                         break;
+
                     case 's':
                         if (isHardS(processedText, i, pronunciation, alignment)) {
                             result.push(englishToTengwar['z'].char);
@@ -693,6 +696,7 @@ export function transcribeToTengwar(word, debug = true) {
                         }
                         i++;
                         break;
+
                     default:
                         if (englishToTengwar[char] && englishToTengwar[char].char) {
                             result.push(englishToTengwar[char].char);
@@ -705,8 +709,9 @@ export function transcribeToTengwar(word, debug = true) {
             }
         }
 
-        if (vowelOnTop) { // add the vowel
-            if (result.length === 0 || vowelDiacritics.includes(result.at(-1))) { // add carrier if previous was also a vowel
+        // Add vowel diacritic if one is pending
+        if (vowelOnTop) {
+            if (result.length === 0 || vowelDiacritics.includes(result.at(-1))) {
                 result.push(tengwarMap['telco']);
             }
             result.push(vowelOnTop);
@@ -719,7 +724,7 @@ export function transcribeToTengwar(word, debug = true) {
         result.at(-1) !== tengwarMap['dot-below']) {
         result.push(tengwarMap['dot-below']);
     } else if (vowelOnTop) {
-        if (vowelOnTop !== tengwarMap['two-dots-below']) { // no carrier for y
+        if (vowelOnTop !== tengwarMap['two-dots-below']) {
             result.push(tengwarMap['telco']);
         }
         result.push(vowelOnTop);

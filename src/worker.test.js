@@ -160,3 +160,7 @@ test('firearm', () => {
 test('Rwanda', () => {
     expect(transcribeToTengwar("Rwanda")).toBe(tengwarToString('roomen', 'nwale', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'))
 })
+
+test('punch', () => {
+    expect(transcribeToTengwar('punch')).toBe(tengwarToString('parma', 'nuumen', 'left-curl', 'calma'));
+})
