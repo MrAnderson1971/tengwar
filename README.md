@@ -1,6 +1,6 @@
 # Tengwar Translator
 
-Automatically transliterates English text on a website to Tengwar from Tolkien's *The Lord of the Rings*.
+Automatically transliterates English text on a website to Tengwar - also know as Elvish - from Tolkien's *The Lord of the Rings*.
 
 [Store listing](https://chromewebstore.google.com/detail/tengwar-transcriber/pcdkckmmamgpdagoenfhifahcfnpipne?authuser=1&hl=en)
 
