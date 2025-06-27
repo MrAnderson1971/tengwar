@@ -536,6 +536,10 @@ export function transcribeToTengwar(word, debug = true) {
 
     while (i < processedText.length) {
         const char = processedText[i].toLowerCase();
+        if (char === "'") { // skip the apostrophe when handling contractions
+            i += 1;
+            continue;
+        }
         let found = false;
 
         if (processedText.slice(i, i + 3) === 'eau' && isMonophthongEau(processedText, i, pronunciation, alignment)) {

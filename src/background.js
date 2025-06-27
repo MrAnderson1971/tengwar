@@ -1,7 +1,9 @@
 import {transcribeToTengwar} from "./worker";
 
-chrome.runtime.onInstalled.addListener(function() {
-    chrome.storage.sync.get('tengwarEnabledDomains', function(data) {
+const wordRegex = /\p{L}+(?:'\p{L}+)*/gu;
+
+chrome.runtime.onInstalled.addListener(function () {
+    chrome.storage.sync.get('tengwarEnabledDomains', function (data) {
         if (data.tengwarEnabledDomains === undefined) {
             chrome.storage.sync.set({tengwarEnabledDomains: []});
         }
@@ -9,7 +11,7 @@ chrome.runtime.onInstalled.addListener(function() {
 });
 
 // Listen for tab updates to inform content scripts about their status
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     // Only run this when the tab has completed loading
     if (changeInfo.status === 'complete' && tab.url) {
         try {
@@ -22,7 +24,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
             }
 
             // Get the current enabled domains and check if this domain is enabled
-            chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function(data) {
+            chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data) {
                 const enabledDomains = data.tengwarEnabledDomains || [];
                 const isEnabled = enabledDomains.includes(domain);
                 const font = data.tengwarFont || 'annatar';
@@ -32,7 +34,8 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
                     action: 'updateTengwarStatus',
                     enabled: isEnabled,
                     font: font
-                }).catch(() => {});
+                }).catch(() => {
+                });
             });
         } catch (error) {
             console.error('Error processing tab URL:', error);
@@ -41,10 +44,10 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 });
 
 // Listen for messages from content scripts and popup
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === 'getTengwarStatus') {
         const domain = request.domain;
-        chrome.storage.sync.get('tengwarEnabledDomains', function(data) {
+        chrome.storage.sync.get('tengwarEnabledDomains', function (data) {
             const enabledDomains = data.tengwarEnabledDomains || [];
             const isEnabled = enabledDomains.includes(domain);
             sendResponse({enabled: isEnabled});
@@ -59,7 +62,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const textBatch = request.textBatch;
 
         if (!textBatch || !Array.isArray(textBatch)) {
-            sendResponse({ error: 'Invalid batch' });
+            sendResponse({error: 'Invalid batch'});
             return true;
         }
 
@@ -71,7 +74,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 const fragments = [];
                 let lastIndex = 0;
-                const wordRegex = /\p{L}+/gu;
                 let match;
 
                 while ((match = wordRegex.exec(processedText)) !== null) {
@@ -101,9 +103,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return fragments;
             });
 
-            sendResponse({ results: results });
+            sendResponse({results: results});
         } catch (error) {
-            sendResponse({ error: error.message });
+            sendResponse({error: error.message});
         }
 
         return true; // Keep message channel open
