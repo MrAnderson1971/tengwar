@@ -164,3 +164,15 @@ test('Rwanda', () => {
 test('punch', () => {
     expect(transcribeToTengwar('punch')).toBe(tengwarToString('parma', 'nuumen', 'left-curl', 'calma'));
 })
+
+test('Joe', () => {
+    expect(transcribeToTengwar('Joe')).toBe(tengwarToString('anga', 'telco', 'right-curl', 'dot-below'));
+})
+
+test("you're", () => {
+    expect(transcribeToTengwar("you're")).toBe(tengwarToString('anna', 'vala', 'right-curl') + "'" + tengwarToString('oore', 'dot-below'));
+})
+
+test("you've", () => {
+    expect(transcribeToTengwar("you've")).toBe(tengwarToString('anna', 'vala', 'right-curl') + "'" + tengwarToString('ampa', 'dot-below'));
+})
