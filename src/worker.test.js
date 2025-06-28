@@ -170,9 +170,17 @@ test('Joe', () => {
 })
 
 test("you're", () => {
-    expect(transcribeToTengwar("you're")).toBe(tengwarToString('anna', 'vala', 'right-curl') + "'" + tengwarToString('oore', 'dot-below'));
+    expect(transcribeToTengwar("you're")).toBe(tengwarToString('anna', 'vala', 'right-curl', 'oore', 'dot-below'));
 })
 
 test("you've", () => {
-    expect(transcribeToTengwar("you've")).toBe(tengwarToString('anna', 'vala', 'right-curl') + "'" + tengwarToString('ampa', 'dot-below'));
+    expect(transcribeToTengwar("you've")).toBe(tengwarToString('anna', 'vala', 'right-curl', 'ampa', 'dot-below'));
+})
+
+test('precious', () => {
+    expect(transcribeToTengwar('precious')).toBe(tengwarToString('parma', 'roomen', 'silme-nuquerna', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'));
+})
+
+test('appreciate', () => {
+    expect(transcribeToTengwar('appreciate')).toBe(tengwarToString('parma', 'three-dots', 'doubler', 'roomen', 'silme-nuquerna', 'acute', 'telco', 'dot', 'tinco', 'three-dots', 'dot-below'));
 })
