@@ -4,10 +4,10 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
     mode: 'production',
     entry: {
-        content: './src/content.js',
-        background: './src/background.js',
-        popup: './src/popup.js',
-        'dom-patcher': './src/dom-patcher.js',
+        content: './src/content.ts',
+        background: './src/background.ts',
+        popup: './src/popup.ts',
+        'dom-patcher': './src/dom-patcher.ts',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
@@ -15,6 +15,11 @@ module.exports = {
     },
     module: {
         rules: [
+            {
+                test: /\.tsx?$/, // Matches .ts and .tsx files
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
             {
                 test: /\.js$/,
                 exclude: /node_modules/,
@@ -39,6 +44,7 @@ module.exports = {
         }),
     ],
     resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
         fallback: {
             "fs": false,
             "path": false

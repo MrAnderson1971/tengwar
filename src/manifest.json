@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Elvish Translator",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Transcribes text to English mode Elvish (Tengwar), from The Lord of the Rings",
   "permissions": [
     "storage",

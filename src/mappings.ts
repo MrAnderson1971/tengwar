@@ -1,11 +1,3 @@
-export function tengwarToString(...tengwar) {
-    let output = "";
-    for (const tengwa of tengwar) {
-        output += tengwarMap[tengwa];
-    }
-    return output;
-}
-
 // Mapping based on the actual characters from the compiled LaTeX document
 // This maps LaTeX commands to their corresponding characters in the Annatar font
 export const tengwarMap = {
@@ -70,16 +62,20 @@ export const tengwarMap = {
 
     'extended-ando': '@', // \Textendedando
     'extended-umbar': 'W', // \Textendedumbar
-};
+} as const;
+
+interface Chars {
+    char: string;
+}
 
 // English mode mapping (simplified for this extension)
-export const englishToTengwar = {
+export const englishToTengwar: Record<string, Chars> = {
     // Basic vowels
-    'a': {tehta: tengwarMap['three-dots']},
-    'e': {tehta: tengwarMap['acute']},
-    'i': {tehta: tengwarMap['dot']},
-    'o': {tehta: tengwarMap['right-curl']},
-    'u': {tehta: tengwarMap['left-curl']},
+    'a': {char: tengwarMap['three-dots']},
+    'e': {char: tengwarMap['acute']},
+    'i': {char: tengwarMap['dot']},
+    'o': {char: tengwarMap['right-curl']},
+    'u': {char: tengwarMap['left-curl']},
 
     // Basic consonants
     't': {char: tengwarMap['tinco']},
@@ -122,10 +118,10 @@ export const englishToTengwar = {
     'gh': {char: tengwarMap['unque']},
     'x': {char: tengwarMap['quesse'] + tengwarMap['left-hook']},
     'j': {char: tengwarMap['anga']},
-};
+} as const;
 
 // Special cases for common English words
-export const specialWords = {
+export const specialWords: Record<string, string> = {
     'a': tengwarMap['osse'],
     'the': tengwarMap['extended-ando'],
     'of': tengwarMap['extended-umbar'],
@@ -134,14 +130,14 @@ export const specialWords = {
     'tengwar': tengwarMap['tinco'] + tengwarMap['nwalme'] + tengwarMap['acute'] + tengwarMap['vala'] + tengwarMap['oore'] + tengwarMap['three-dots'],
     'firearm': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta'),
     'firearms': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta', 'esse-nuquerna'),
-    'rwanda': tengwarToString('roomen', 'nwale', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'),
+    'rwanda': tengwarToString('roomen', 'nwalme', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'),
 
     // no clue why this didn't work, but its variants did
     'precious': tengwarToString('parma', 'roomen', 'silme-nuquerna', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'),
-};
+} as const;
 
 // Individual phoneme patterns
-export const phonemeToLetterPatterns = {
+export const phonemeToLetterPatterns: Record<string, string[]> = {
     // Vowel phonemes
     'AA0': ['a', 'o'], 'AA1': ['a', 'o'], 'AA2': ['a', 'o'],
     'AE0': ['a'], 'AE1': ['a'], 'AE2': ['a'],
@@ -185,8 +181,13 @@ export const phonemeToLetterPatterns = {
     'ZH': ['s', 'z', 'g']
 };
 
+export interface LettersToPhonemes {
+    letters: string;
+    phonemes: string[];
+}
+
 // Set up common English spelling patterns with their typical phoneme sequences
-export const commonPatterns = [
+export const commonPatterns: LettersToPhonemes[] = [
     // Common suffixes
     {letters: 'ing', phonemes: ['IH0', 'NG']},
     {letters: 'ed', phonemes: ['D']},
@@ -256,12 +257,11 @@ export const commonPatterns = [
     {letters: 'zz', phonemes: ['Z']},
 
     {letters: 'iou', phonemes: ['IY0', 'AH0']},
-];
-
+] as const;
 export const vowelPhonemePatterns = /^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)[0-9]?/;
 
 // List of vowel phonemes in CMU dictionary
-export const vowelPhonemes = [
+export const vowelPhonemes: string[] = [
     "AA", "AA0", "AA1", "AA2",
     "AE", "AE0", "AE1", "AE2",
     "AH", "AH0", "AH1", "AH2",
@@ -277,13 +277,25 @@ export const vowelPhonemes = [
     "OY", "OY0", "OY1", "OY2",
     "UH", "UH0", "UH1", "UH2",
     "UW", "UW0", "UW1", "UW2"
-];
+] as const;
 
 // Fallback to known common diphthong letter pairs (O(1))
-export const commonDiphthongs = [
+export const commonDiphthongs: string[] = [
     'ae', 'ai', 'ay', 'au', 'aw',
     'ea', 'ee', 'ei', 'ey', 'eu',
     'ie',
     'oa', 'oe', 'oi', 'oy', 'ou', 'ow',
     'ue', "ui"
-];
+] as const;
+
+export function tengwarToString(...tengwar: string[]): string {
+    let output = "";
+    for (const tengwa of tengwar) {
+        const char = tengwarMap[tengwa as keyof typeof tengwarMap];
+        if (char === undefined) {
+            throw new Error("Unknown key " + tengwa);
+        }
+        output += char;
+    }
+    return output;
+}

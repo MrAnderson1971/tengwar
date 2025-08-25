@@ -1,12 +1,11 @@
 // Helper functions for heuristics (fallbacks)
 import {commonDiphthongs, englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
 import {dictionary} from "cmu-pronouncing-dictionary";
-import {alignLettersToPhonemes} from "./align";
+import {alignLettersToPhonemes, type AlignmentResult} from "./align";
 import translate from "british_american_translate";
 
-function isSoftC(word, position) {
-    const nextChar = position < word.length - 1 ? word[position + 1].toLowerCase() : null;
-    return nextChar && ['e', 'i', 'y'].includes(nextChar);
+function isSoftC(word: string, position: number): boolean {
+    return ['e', 'i', 'y'].includes(word[position + 1]?.toLowerCase() ?? "");
 }
 
 /**
@@ -14,7 +13,7 @@ function isSoftC(word, position) {
  * @param {string} word lowercase
  * @returns {*}
  */
-function removeSilentLetters(word) {
+function removeSilentLetters(word: string): string {
     // Patterns for silent letters
     const silentPatterns = [
         {pattern: /^p(?=[stn])/, silent: 'p'},  // silent p in psychology, pterodactyl, pneumonia
@@ -33,23 +32,22 @@ function removeSilentLetters(word) {
     return processedWord;
 }
 
-function isConsonantY(word, position) {
+function isConsonantY(word: string, position: number): boolean {
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const prevChar = position > 0 ? word[position - 1].toLowerCase() : null;
-    return position === 0 || (prevChar && vowels.includes(prevChar));
+    return position === 0 || (vowels.includes(word[position - 1]?.toLowerCase() ?? ""));
 }
 
-function getYVowelType(word, position, pronunciation) {
+function getYVowelType(word: string, position: number, pronunciation: string | null): "long" | "short" {
     if (pronunciation) {
-        return !!pronunciation.includes("AY") ? 'long' : 'short';
+        return pronunciation.includes("AY") ? 'long' : 'short';
     }
     return 'short';
 }
 
-function isNgDigraph(word, position) {
+function isNgDigraph(word: string, position: number): boolean {
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const nextNextChar = position < word.length - 2 ? word[position + 2].toLowerCase() : null;
-    return position === word.length - 2 || (nextNextChar && vowels.includes(nextNextChar));
+    const nextNextChar = word[position + 2]?.toLowerCase() ?? "";
+    return position === word.length - 2 || (vowels.includes(nextNextChar));
 }
 
 // Improved detection of silent E
@@ -61,13 +59,16 @@ function isNgDigraph(word, position) {
  * @param {AlignmentResult[]|null} alignmentByIndex
  * @returns {boolean}
  */
-function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
+function hasSilentEImproved(word: string,
+                            position: number,
+                            pronunciation: string | null,
+                            alignmentByIndex: AlignmentResult[] | null): boolean {
     // Quick check - if the word doesn't end with 'e', it's not a silent e
-    if (word.length < 2 || word[word.length - 1].toLowerCase() !== 'e') {
+    if (word.length < 2 || word[word.length - 1]!.toLowerCase() !== 'e' || alignmentByIndex === null) {
         return false;
     }
 
-    const alignment = alignmentByIndex[position] || null;
+    const alignment = alignmentByIndex[position] ?? null;
 
     // If no pronunciation data, fall back to heuristic
     if (!pronunciation || !alignment) {
@@ -78,29 +79,31 @@ function hasSilentEImproved(word, position, pronunciation, alignmentByIndex) {
         return false;
     }
 
-    if (/AH/.test(alignment.phoneme) && word[position - 1] === 'l' || /R/.test(alignment.phoneme) && word[position - 1] === 'r') {
+    if (alignment.phoneme !== null && (
+        /AH/.test(alignment.phoneme) && word[position - 1] === 'l' ||
+        /R/.test(alignment.phoneme) && word[position - 1] === 'r')) {
         return true;
     }
 
     return alignment.phoneme === null;
 }
 
-function hasSilentE(word) {
+function hasSilentE(word: string): boolean {
     if (word.length < 2) {
         return false;
     }
-    if (word[word.length - 1].toLowerCase() !== 'e') {
+    if (word[word.length - 1]?.toLowerCase() !== 'e') {
         return false;
     }
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
     let hasEarlierVowel = false;
     for (let i = 0; i < word.length - 1; i++) {
-        if (vowels.includes(word[i].toLowerCase())) {
+        if (vowels.includes(word[i]!.toLowerCase())) {
             hasEarlierVowel = true;
             break;
         }
     }
-    const secondToLast = word[word.length - 2].toLowerCase();
+    const secondToLast = word[word.length - 2]?.toLowerCase() ?? "";
     const isConsonant = !vowels.includes(secondToLast);
     return hasEarlierVowel && isConsonant;
 }
@@ -113,12 +116,18 @@ function hasSilentE(word) {
  * @param {AlignmentResult[]|null} alignmentByIndex
  * @returns {boolean}
  */
-function isHardS(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+function isHardS(word: string,
+                 position: number,
+                 pronunciation: string | null,
+                 alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
+    if (alignmentByIndex === null) {
+        return false;
+    }
     if (word.slice(position - 1, position + 2) === 'ase') { // Enzyme suffix matching
         return true;
     }
 
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+    const alignmentEntry = alignmentByIndex[position] ?? null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
         return false; // Cannot determine from pronunciation
@@ -126,16 +135,22 @@ function isHardS(word, position, pronunciation, alignmentByIndex) { // Modified 
 
     // Check the alignment entry for this position
     if (alignmentEntry.letters.includes('s') || alignmentEntry.letters.includes('S')) { // Check original letter
-        return alignmentEntry.phoneme && alignmentEntry.phoneme.startsWith('Z');
+        return alignmentEntry.phoneme?.startsWith('Z') ?? false;
     }
 
     return false; // Letter at position is not 's' according to alignment
 }
 
 // Improved disambiguation for NG digraph
-function isNgDigraphImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
-    const alignmentEntryN = alignmentByIndex ? alignmentByIndex[position] : null;     // O(1) lookup for 'n'
-    const alignmentEntryG = alignmentByIndex ? alignmentByIndex[position + 1] : null; // O(1) lookup for 'g'
+function isNgDigraphImproved(word: string,
+                             position: number,
+                             pronunciation: string | null,
+                             alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
+    if (alignmentByIndex === null) {
+        return false; // Can't tell
+    }
+    const alignmentEntryN =  alignmentByIndex[position] ?? null;     // O(1) lookup for 'n'
+    const alignmentEntryG =  alignmentByIndex[position + 1] ?? null; // O(1) lookup for 'g'
 
     if (!pronunciation || !alignmentEntryN) {
         // Fall back to the original heuristic if no pronunciation or alignment
@@ -162,8 +177,14 @@ function isNgDigraphImproved(word, position, pronunciation, alignmentByIndex) { 
 }
 
 // Improved disambiguation for soft/hard C
-function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+function isSoftCImproved(word: string,
+                         position: number,
+                         pronunciation: string | null,
+                         alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
+    if (alignmentByIndex === null) {
+        return false;
+    }
+    const alignmentEntry =  alignmentByIndex[position] ?? null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
         // Fall back to the original heuristic
@@ -171,7 +192,7 @@ function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // M
     }
 
     if (alignmentEntry.phoneme === null) { // some niche edge cases: science, scene, social, ancient, ocean, etc.
-        return /[CS]H/.test(alignmentByIndex[position + 1].phoneme) || word[position - 1] === 's';
+        return /[CS]H/.test(alignmentByIndex[position + 1]?.phoneme ?? "") || word[position - 1] === 's';
     }
 
     // Check the alignment entry for this position
@@ -185,8 +206,11 @@ function isSoftCImproved(word, position, pronunciation, alignmentByIndex) { // M
 }
 
 // Improved disambiguation for consonant Y
-function isConsonantYImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+function isConsonantYImproved(word: string,
+                              position: number,
+                              pronunciation: string | null,
+                              alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] ?? null : null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
         // Fall back to the original heuristic
@@ -204,8 +228,11 @@ function isConsonantYImproved(word, position, pronunciation, alignmentByIndex) {
 }
 
 // Improved detection of y vowel type (long vs short)
-function getYVowelTypeImproved(word, position, pronunciation, alignmentByIndex) { // Modified parameter
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+function getYVowelTypeImproved(word: string,
+                               position: number,
+                               pronunciation: string | null,
+                               alignmentByIndex: AlignmentResult[] | null): "long" | "short" { // Modified parameter
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] ?? null : null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
         // Fall back to the original implementation's heuristic
@@ -232,41 +259,61 @@ function getYVowelTypeImproved(word, position, pronunciation, alignmentByIndex) 
 }
 
 /**
- * Use oore (postvocalic) if it's the end of a word or followed by a consonant or if it's after a vowel
- * Use roomen if it's followed by a vowel
+ * Use oore (postvocalic) if it's the end of a word or followed by a consonant.
+ * Use roomen if it's followed by a vowel.
  * @param {string} word
  * @param {number} position
  * @param {string|null} pronunciation
  * @param {AlignmentResult[]|null} alignmentByIndex
  * @returns {boolean}
  */
-function isPostvocalicR(word, position, pronunciation, alignmentByIndex) {
+function isPostvocalicR(word: string,
+                        position: number,
+                        pronunciation: string | null,
+                        alignmentByIndex: AlignmentResult[] | null): boolean {
     const alignment = alignmentByIndex ? alignmentByIndex[position] : null;
-    if (word[position + 1] === 'r') {
-        return isPostvocalicR(word, position + 1, pronunciation, alignmentByIndex); // double R - do whatever the next R is
+
+    // Handle the next character explicitly
+    const nextChar = word[position + 1];
+
+    // Case 1: End of the word. This is a postvocalic 'r'.
+    if (nextChar === undefined) {
+        return true;
     }
 
-    if (/[bcdfgjklmnpqstvwxz]/.test(word[position + 1])) {
-        return true; // consonant that's not [hr] or "undefined"
+    // Case 2: Double 'rr'. Defer to the next 'r'.
+    if (nextChar === 'r') {
+        return isPostvocalicR(word, position + 1, pronunciation, alignmentByIndex);
     }
 
-    if (word[position + 1] === 'h' && alignment?.phoneme === null) {
+    // Case 3: Followed by a standard consonant. This is a postvocalic 'r'.
+    if (/[bcdfgjklmnpqstvwxz]/.test(nextChar)) {
+        return true;
+    }
+
+    // Case 4: Special handling for 'h'.
+    if (nextChar === 'h' && alignment?.phoneme === null) {
         return isPostvocalicR(word, position + 2, pronunciation, alignmentByIndex);
     }
 
-    if (word[position + 1] === 'e') {
+    // Case 5: Special handling for 'e'.
+    if (nextChar === 'e') {
         return !isDiphthong(word, position + 1, pronunciation, alignmentByIndex) &&
             (isSilentEInMiddle(word, position + 1, pronunciation, alignmentByIndex) ||
                 hasSilentEImproved(word, position + 1, pronunciation, alignmentByIndex));
     }
 
-    return false; // is consonant
+    // Default case: Followed by a vowel or other character. It's not postvocalic.
+    return false;
 }
 
 // Improved detection of silent E
-function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+function isSilentEInMiddle(word: string,
+                           position: number,
+                           pronunciation: string | null,
+                           alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
     // Check if the letter is actually an 'e'
-    if (word[position].toLowerCase() !== 'e') {
+    if ((word[position]?.toLowerCase() ?? "") !== 'e') {
         return false;
     }
 
@@ -276,12 +323,15 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
     }
 
     const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+    if (alignmentEntry === null) {
+        return false;
+    }
 
     // Use pronunciation data if available
     if (pronunciation && alignmentEntry) {
         if (alignmentEntry.letters === 'e' || alignmentEntry.letters === 'E') {
             // ER is not silent
-            if (alignmentByIndex[position + 1].phoneme && alignmentByIndex[position + 1].phoneme.includes('R')) {
+            if ((alignmentByIndex![position + 1]!.phoneme ?? "").includes('R')) {
                 return false;
             }
 
@@ -307,15 +357,18 @@ function isSilentEInMiddle(word, position, pronunciation, alignmentByIndex) { //
 // Function to detect if vowels are in the same syllable using pronunciation data
 // Similar issue to isPostvocalicR - checking relationship between phonemes at pos/pos+1
 // requires looking at two alignment entries. This is still O(1) with the index.
-function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modified parameter
+function isDiphthong(word: string,
+                     position: number,
+                     pronunciation: string | null,
+                     alignmentByIndex: AlignmentResult[] | null): boolean { // Modified parameter
     // If not enough characters for a diphthong
     if (position >= word.length - 1) {
         return false;
     }
 
     const vowels = ['a', 'e', 'i', 'o', 'u', 'y'];
-    const char = word[position].toLowerCase();
-    const nextChar = word[position + 1].toLowerCase();
+    const char = word[position]!.toLowerCase();
+    const nextChar = word[position + 1]?.toLowerCase() ?? "";
 
     // Both characters must be vowels
     if (!vowels.includes(char) || !vowels.includes(nextChar)) {
@@ -325,7 +378,7 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
     const possibleDiphthong = char + nextChar;
 
     if ((possibleDiphthong === 'ia' || possibleDiphthong === 'io' || possibleDiphthong === 'iu') &&
-        position > 0 && !vowels.includes(word[position - 1])) {
+        position > 0 && !vowels.includes(word[position - 1] ?? "")) {
         return false;
     }
 
@@ -376,14 +429,14 @@ function isDiphthong(word, position, pronunciation, alignmentByIndex) { // Modif
  * @param {string} word
  * @returns {null | string}
  */
-function getPronunciation(word) {
+function getPronunciation(word: string): string | null {
     // Get from dictionary
     let pronunciation = null;
     if (dictionary[word.toLowerCase()]) {
         pronunciation = dictionary[word.toLowerCase()];
     }
 
-    return pronunciation;
+    return pronunciation ?? null;
 }
 
 /** Get diphthong type based on second vowel
@@ -392,8 +445,8 @@ function getPronunciation(word) {
  * @param {number} position
  * @returns {string}
  */
-function getDiphthongType(word, position) {
-    return word[position + 1].toLowerCase();
+function getDiphthongType(word: string, position: number): string {
+    return word[position + 1]!.toLowerCase();
 }
 
 /** Handle diphthongs based on the rules:
@@ -408,12 +461,15 @@ function getDiphthongType(word, position) {
  @param {string|null} vowelOnTop
  @return {number}
  */
-function handleDiphthong(word, position, result, vowelOnTop) {
-    const char = word[position].toLowerCase();
+function handleDiphthong(word: string,
+                         position: number,
+                         result: string[],
+                         vowelOnTop: string | null): 0 | 2 {
+    const char = word[position]!.toLowerCase();
     const diphthongType = getDiphthongType(word, position);
 
     // Store current diacritic for first vowel
-    const firstVowelTehta = englishToTengwar[char].tehta;
+    const firstVowelTehta = englishToTengwar[char]!.char;
 
     switch (diphthongType) {
         case 'a':
@@ -443,13 +499,13 @@ function handleDiphthong(word, position, result, vowelOnTop) {
 
         case 'i':
             // xi = treat i as consonant y
-            result.push(englishToTengwar['y'].char); // Use 'anna' for consonant y
+            result.push(englishToTengwar['y']!.char); // Use 'anna' for consonant y
             result.push(firstVowelTehta);
             return 2; // Skip both vowels
 
         case 'u':
             // xu = treat u as consonant w
-            result.push(englishToTengwar['w'].char); // Use 'vala' for consonant w
+            result.push(englishToTengwar['w']!.char); // Use 'vala' for consonant w
             result.push(firstVowelTehta);
             return 2; // Skip both vowels
 
@@ -466,11 +522,11 @@ function handleDiphthong(word, position, result, vowelOnTop) {
     }
 }
 
-const vowelDiacritics = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarMap['dot'], tengwarMap['right-curl'], tengwarMap['right-curl']];
+const vowelDiacritics: string[] = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarMap['dot'], tengwarMap['right-curl'], tengwarMap['right-curl']];
 
-const cache = new Map();
+const cache: Map<string, string> = new Map();
 
-function removeDiacritics(str) {
+function removeDiacritics(str: string): string {
     return str.normalize('NFD')           // Normalize to decomposed form
         .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
         .normalize('NFC');          // Normalize back (optional)
@@ -484,7 +540,10 @@ function removeDiacritics(str) {
  * @param {AlignmentResult[]|null} alignment
  * @return {boolean}
  */
-function isMonophthongEau(word, position, pronunciation, alignment) {
+function isMonophthongEau(word: string,
+                          position: number,
+                          pronunciation: string | null,
+                          alignment: AlignmentResult[] | null): boolean {
     if (!alignment || !pronunciation) {
         return true; // assume it's true
     }
@@ -492,7 +551,9 @@ function isMonophthongEau(word, position, pronunciation, alignment) {
     const alignment2 = alignment[position + 1] || null;
     const alignment3 = alignment[position + 2] || null;
 
-    return alignment1?.phoneme === null && alignment2?.phoneme === null && /OW/.test(alignment3?.phoneme);
+    return alignment1?.phoneme === null &&
+        alignment2?.phoneme === null &&
+        /OW/.test(alignment3?.phoneme ?? "");
 }
 
 /**
@@ -501,9 +562,9 @@ function isMonophthongEau(word, position, pronunciation, alignment) {
  * @param {boolean} debug
  * @return {string}
  */
-export function transcribeToTengwar(word, debug = true) {
+export function transcribeToTengwar(word: string, debug: boolean = true): string {
     if (cache.has(word)) {
-        return cache.get(word);
+        return <string>cache.get(word);
     }
     const lowerText = word.toLowerCase();
     if (specialWords[lowerText]) {
@@ -535,7 +596,7 @@ export function transcribeToTengwar(word, debug = true) {
     let vowelOnTop = null;
 
     while (i < processedText.length) {
-        const char = processedText[i].toLowerCase();
+        const char = processedText[i]!.toLowerCase();
         if (char === "'") { // skip the apostrophe when handling contractions
             i += 1;
             continue;
@@ -567,18 +628,18 @@ export function transcribeToTengwar(word, debug = true) {
 
                 if (ngram === 'ng') {
                     if (isNgDigraphImproved(processedText, i, pronunciation, alignment)) {
-                        result.push(englishToTengwar['ng'].char);
+                        result.push(englishToTengwar['ng']!.char);
                         i += 2;
                         found = true;
                         break;
                     } else {
-                        result.push(englishToTengwar['n'].char);
+                        result.push(englishToTengwar['n']!.char);
                         i++;
                         found = true;
                         break;
                     }
                 } else if (ngram === 'nc' && !isSoftCImproved(processedText, i + 1, pronunciation, alignment)) {
-                    result.push(englishToTengwar['nk'].char);
+                    result.push(englishToTengwar['nk']!.char);
                     i += 2;
                     found = true;
                     break;
@@ -587,14 +648,14 @@ export function transcribeToTengwar(word, debug = true) {
                     // Check if there's a vowel waiting to attach
                     if (vowelOnTop) {
                         // Break down nch: process 'n' with vowel, then 'ch' separately
-                        result.push(englishToTengwar['n'].char);  // Add 'n'
+                        result.push(englishToTengwar['n']!.char);  // Add 'n'
                         // Vowel will be added at end of loop
                         i += 1; // Move past 'n', let 'ch' be processed in next iteration
                         found = true;
                         break;
                     } else {
                         // No pending vowel, treat as normal nch
-                        result.push(englishToTengwar['nch'].char);
+                        result.push(englishToTengwar['nch']!.char);
                         i += 3;
                         found = true;
                         break;
@@ -617,7 +678,7 @@ export function transcribeToTengwar(word, debug = true) {
 
         if (!found) {
             // Handle doubled consonants
-            if (!'aeiou'.includes(processedText[i]) && i > 0 && (processedText[i] === processedText[i - 1] ||
+            if (!'aeiou'.includes(processedText[i]!) && i > 0 && (processedText[i] === processedText[i - 1] ||
                     processedText[i] === 'k' && processedText[i - 1] === 'c') &&
                 !(processedText[i] === 'c' && processedText[i - 1] === 'c' &&
                     isSoftCImproved(processedText, i, pronunciation, alignment) !== isSoftCImproved(processedText, i - 1, pronunciation, alignment))) {
@@ -633,7 +694,7 @@ export function transcribeToTengwar(word, debug = true) {
                             result.push(tengwarMap['telco']);
                             result.push(vowelOnTop);
                         }
-                        vowelOnTop = englishToTengwar[char].tehta;
+                        vowelOnTop = englishToTengwar[char]!.char;
                         i++;
                         continue;
 
@@ -648,7 +709,7 @@ export function transcribeToTengwar(word, debug = true) {
                             result.push(vowelOnTop);
                             vowelOnTop = null;
                         }
-                        vowelOnTop = englishToTengwar[char].tehta;
+                        vowelOnTop = englishToTengwar[char]!.char;
                         i++;
                         continue;
 
@@ -656,14 +717,14 @@ export function transcribeToTengwar(word, debug = true) {
                         if (isSoftCImproved(processedText, i, pronunciation, alignment)) {
                             result.push(tengwarMap['silme-nuquerna']);
                         } else {
-                            result.push(englishToTengwar['c'].char);
+                            result.push(englishToTengwar['c']!.char);
                         }
                         i++;
                         break;
 
                     case 'y':
-                        if (isConsonantYImproved(processedText, i, pronunciation)) {
-                            result.push(englishToTengwar['y'].char);
+                        if (isConsonantYImproved(processedText, i, pronunciation, null)) {
+                            result.push(englishToTengwar['y']!.char);
                             i++;
                         } else {
                             const yType = getYVowelTypeImproved(processedText, i, pronunciation, alignment);
@@ -687,16 +748,16 @@ export function transcribeToTengwar(word, debug = true) {
                         if (isPostvocalicR(processedText, i, pronunciation, alignment)) {
                             result.push(tengwarMap['oore']);
                         } else {
-                            result.push(englishToTengwar['r'].char);
+                            result.push(englishToTengwar['r']!.char);
                         }
                         i++;
                         break;
 
                     case 's':
                         if (isHardS(processedText, i, pronunciation, alignment)) {
-                            result.push(englishToTengwar['z'].char);
+                            result.push(englishToTengwar['z']!.char);
                         } else {
-                            result.push(englishToTengwar['s'].char);
+                            result.push(englishToTengwar['s']!.char);
                         }
                         i++;
                         break;
@@ -715,7 +776,7 @@ export function transcribeToTengwar(word, debug = true) {
 
         // Add vowel diacritic if one is pending
         if (vowelOnTop) {
-            if (result.length === 0 || vowelDiacritics.includes(result.at(-1))) {
+            if (result.length === 0 || vowelDiacritics.includes(result.at(-1)!)) {
                 result.push(tengwarMap['telco']);
             }
             result.push(vowelOnTop);
