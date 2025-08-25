@@ -1,9 +1,24 @@
 // Track if Tengwar is currently enabled
+import {ProcessBatchResponse} from "./types";
+
+declare global {
+    interface Window {
+        tengwarInitialized: boolean;
+    }
+}
+
 let tengwarEnabled = false;
 let fontInjected = false;
 let currentFont = 'annatar';
 
-// Listen for messages from popup.js
+/** Data structure for a text node in the DOM that is queued for processing. */
+interface TengwarNode {
+    node: Text;      // The actual Text node in the DOM
+    text: string;    // The node's original text content
+    parent: Node;    // The node's parent (kept as Node for replaceChild flexibility)
+}
+
+// Listen for messages from popup.ts
 chrome.runtime.onMessage.addListener(function (request) {
     // --- THIS LISTENER REMAINS LARGELY THE SAME ---
     // It handles messages *after* initialization or user interaction
@@ -48,7 +63,7 @@ chrome.runtime.onMessage.addListener(function (request) {
     }
 });
 
-function updateTengwarFont(fontName) {
+function updateTengwarFont(fontName: string) {
     // Make sure font is valid
     if (!fontName || (fontName !== 'annatar' && fontName !== 'parmaite')) {
         fontName = 'annatar'; // Default to Annatar if invalid
@@ -84,7 +99,7 @@ function updateTengwarFont(fontName) {
 }
 
 // Modify your existing injectTengwarFont function to accept a font parameter
-function injectTengwarFont(fontName) {
+function injectTengwarFont(fontName: string) {
     if (fontInjected) {
         return;
     }
@@ -131,18 +146,18 @@ function processPage() {
 }
 
 // Process content within a container element
-function processContent(container) {
-    if (!container || isElementToSkip(container)) {
+function processContent(container: HTMLElement) {
+    if (container === null || isElementToSkip(container)) {
         return;
     }
 
-    const textNodes = [];
+    const textNodes: Text[] = [];
     const walker = document.createTreeWalker(
         container,
         NodeFilter.SHOW_TEXT,
         {
             acceptNode: function (node) {
-                if (!node.nodeValue.trim() || isElementToSkip(node.parentElement)) {
+                if (!node.nodeValue?.trim() || isElementToSkip(node.parentElement)) {
                     return NodeFilter.FILTER_REJECT;
                 }
 
@@ -153,7 +168,7 @@ function processContent(container) {
 
     let node;
     while ((node = walker.nextNode())) {
-        textNodes.push(node);
+        textNodes.push(node as Text);
     }
 
     textNodes.forEach(processTextNode);
@@ -161,10 +176,10 @@ function processContent(container) {
 
 /** Function to determine if an element should be skipped
  *
- * @param {Element} element
+ * @param {HTMLElement | null} element
  * @returns {boolean}
  */
-function isElementToSkip(element) {
+function isElementToSkip(element: HTMLElement | null): boolean {
     if (!element) {
         return true;
     }
@@ -193,7 +208,7 @@ function isElementToSkip(element) {
     return element.isContentEditable || element.contentEditable === 'true';
 }
 
-const tengwarNodeQueue = [];
+const tengwarNodeQueue: TengwarNode[] = [];
 let tengwarProcessingActive = false;
 let tengwarProcessingIndex = 0;
 let tengwarProcessedCount = 0;
@@ -206,7 +221,7 @@ const TENGWAR_UI_REFRESH_DELAY = 16; // ms pause for UI refresh (1 frame @60fps)
  *
  * @param {Text} textNode
  */
-function processTextNode(textNode) {
+function processTextNode(textNode: Text) {
     if (!textNode || !textNode.nodeValue || !textNode.parentNode) {
         return;
     }
@@ -214,7 +229,7 @@ function processTextNode(textNode) {
     const parent = textNode.parentNode;
 
     // Skip if already processed
-    if (parent.classList && parent.classList.contains('tengwar-text')) {
+    if (parent instanceof Element && parent.classList.contains('tengwar-text')) {
         return;
     }
 
@@ -242,7 +257,7 @@ function processTengwarBatchWithYield() {
     }
 
     const startTime = performance.now();
-    const nodesToProcess = [];
+    const nodesToProcess: TengwarNode[] = [];
     const textsToProcess = [];
 
     // Collect as many unprocessed nodes as possible within the time limit
@@ -250,7 +265,7 @@ function processTengwarBatchWithYield() {
     while (tengwarProcessingIndex < tengwarNodeQueue.length &&
     performance.now() - startTime < TENGWAR_MAX_PROCESSING_TIME) {
 
-        const nodeData = tengwarNodeQueue[tengwarProcessingIndex++];
+        const nodeData = tengwarNodeQueue[tengwarProcessingIndex++]!;
 
         // Skip nodes no longer in DOM
         if (!nodeData.node.parentNode) {
@@ -279,7 +294,7 @@ function processTengwarBatchWithYield() {
             action: 'processBatch',
             textBatch: textsToProcess
         },
-        response => {
+        (response: ProcessBatchResponse) => {
             if (!response || response.error) {
                 console.error("Error processing batch:", response?.error || "No response");
 
@@ -289,14 +304,13 @@ function processTengwarBatchWithYield() {
             }
 
             // Apply results to nodes
-            const results = response.results;
-            for (let i = 0; i < nodesToProcess.length; i++) {
-                const nodeData = nodesToProcess[i];
-                const fragments = results[i];
+            const results = response.results!;
+            nodesToProcess.forEach((nodeData, i) => {
+                const fragments = results[i]!;
 
                 // Skip if node is no longer in DOM
                 if (!nodeData.node.parentNode) {
-                    continue;
+                    return;
                 }
 
                 // Create and insert processed content
@@ -308,7 +322,7 @@ function processTengwarBatchWithYield() {
                             const span = document.createElement('span');
                             span.className = 'tengwar-text';
                             span.textContent = fragment.text;
-                            span.setAttribute('data-original', fragment.original);
+                            span.setAttribute('data-original', fragment.original ?? "");
                             documentFragment.appendChild(span);
                         } else {
                             documentFragment.appendChild(document.createTextNode(fragment.text));
@@ -322,7 +336,7 @@ function processTengwarBatchWithYield() {
                         console.error("Error replacing node:", e);
                     }
                 }
-            }
+            });
 
             // Yield to UI thread before continuing
             setTimeout(processTengwarBatchWithYield, TENGWAR_UI_REFRESH_DELAY);
@@ -347,7 +361,7 @@ function disableTengwar() {
 }
 
 // Setup mutation observer to handle dynamic content
-let observer = null;
+let observer: MutationObserver | null = null;
 
 function setupMutationObserver() {
     if (observer) {
@@ -356,14 +370,14 @@ function setupMutationObserver() {
 
     observer = new MutationObserver(function (mutations) {
         // Process in batches to improve performance
-        const nodesToProcess = new Set();
+        const nodesToProcess: Set<HTMLElement> = new Set();
 
-        mutations.forEach(function (mutation) {
+        mutations.forEach(function (mutation: MutationRecord) {
             if (mutation.type === 'childList') {
                 // Handle new nodes being added
                 mutation.addedNodes.forEach(function (node) {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        nodesToProcess.add(node);
+                        nodesToProcess.add(node as HTMLElement);
                     }
                 });
             } else if (mutation.type === 'attributes') {
@@ -371,14 +385,14 @@ function setupMutationObserver() {
 
                 // Only process if it's an element
                 if (target.nodeType === Node.ELEMENT_NODE) {
-                    nodesToProcess.add(target);
+                    nodesToProcess.add(target as HTMLElement);
                 }
             } else if (mutation.type === 'characterData') {
                 // Process text content changes
                 if (mutation.target.nodeType === Node.TEXT_NODE) {
                     const parent = mutation.target.parentElement;
                     if (parent && !isElementToSkip(parent)) {
-                        processTextNode(mutation.target);
+                        processTextNode(mutation.target as Text);
                     }
                 }
             }
