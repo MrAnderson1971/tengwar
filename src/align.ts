@@ -1,3 +1,5 @@
+import {commonPatterns, phonemeToLetterPatterns, vowelPhonemes} from "./mappings";
+
 export interface AlignmentResult {
     letters: string;
     startIndex: number;
@@ -7,9 +9,6 @@ export interface AlignmentResult {
     pattern?: string;
     isMissingLetter?: boolean;
 }
-
-// This function aligns CMU dictionary phonemes with English spelling
-import {commonPatterns, phonemeToLetterPatterns, vowelPhonemes} from "./mappings";
 
 const MATCH_SCORE = 2;       // Score for a likely letter-phoneme match
 const MISMATCH_SCORE = -1;   // Penalty for an unlikely letter-phoneme mismatch

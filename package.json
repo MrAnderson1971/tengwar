@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "british_american_translate": "^2.0.1",
-    "cmu-pronouncing-dictionary": "^3.0.0"
+    "cmu-pronouncing-dictionary": "^3.0.0",
+    "lru-cache": "^11.2.4"
   }
 }

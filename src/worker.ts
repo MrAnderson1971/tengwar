@@ -1,8 +1,8 @@
-// Helper functions for heuristics (fallbacks)
 import {commonDiphthongs, englishToTengwar, specialWords, tengwarMap, vowelPhonemePatterns} from "./mappings";
 import {dictionary} from "cmu-pronouncing-dictionary";
 import {alignLettersToPhonemes, type AlignmentResult} from "./align";
 import translate from "british_american_translate";
+import {LRUCache} from "lru-cache";
 
 function isSoftC(word: string, position: number): boolean {
     return ['e', 'i', 'y'].includes(word[position + 1]?.toLowerCase() ?? "");
@@ -524,8 +524,6 @@ function handleDiphthong(word: string,
 
 const vowelDiacritics: string[] = [tengwarMap['three-dots'], tengwarMap['acute'], tengwarMap['dot'], tengwarMap['right-curl'], tengwarMap['right-curl']];
 
-const cache: Map<string, string> = new Map();
-
 function removeDiacritics(str: string): string {
     return str.normalize('NFD')           // Normalize to decomposed form
         .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
@@ -556,6 +554,8 @@ function isMonophthongEau(word: string,
         /OW/.test(alignment3?.phoneme ?? "");
 }
 
+const cache = new LRUCache<string, string>({ max: 25_000 });
+
 /**
  *
  * @param {string} word
@@ -563,8 +563,9 @@ function isMonophthongEau(word: string,
  * @return {string}
  */
 export function transcribeToTengwar(word: string, debug: boolean = true): string {
-    if (cache.has(word)) {
-        return <string>cache.get(word);
+    const cached = cache.get(word);
+    if (cached) {
+        return cached;
     }
     const lowerText = word.toLowerCase();
     if (specialWords[lowerText]) {
