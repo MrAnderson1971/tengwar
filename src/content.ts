@@ -352,12 +352,29 @@ function cleanupTengwarProcessing() {
     tengwarProcessedCount = 0;
 }
 
-// Make sure we add this to your existing disableTengwar
+// Revert all tengwar spans back to original text
 function disableTengwar() {
     tengwarEnabled = false;
     cleanupTengwarProcessing();
-    // Rest of your cleanup...
-    window.location.reload();
+
+    if (observer) {
+        observer.disconnect();
+        observer = null;
+    }
+
+    const tengwarSpans = document.querySelectorAll('.tengwar-text');
+    tengwarSpans.forEach(span => {
+        const originalText = span.getAttribute('data-original') ?? span.textContent ?? '';
+        const textNode = document.createTextNode(originalText);
+        span.parentNode?.replaceChild(textNode, span);
+    });
+
+    const styleEl = document.getElementById('tengwar-font-style');
+    if (styleEl) {
+        styleEl.remove();
+    }
+
+    fontInjected = false;
 }
 
 // Setup mutation observer to handle dynamic content
