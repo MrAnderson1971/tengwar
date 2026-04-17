@@ -7,9 +7,18 @@ declare global {
     }
 }
 
+type TengwarMessage =
+    | { action: 'updateTengwarStatus'; enabled: boolean; font?: 'annatar' | 'parmaite' }
+    | { action: 'updateTengwarFont'; font?: 'annatar' | 'parmaite' };
+
+interface TengwarStorage {
+    tengwarEnabledDomains?: string[];
+    tengwarFont?: 'annatar' | 'parmaite';
+}
+
 let tengwarEnabled = false;
 let fontInjected = false;
-let currentFont = 'annatar';
+let currentFont: 'annatar' | 'parmaite' = 'annatar';
 
 /** Data structure for a text node in the DOM that is queued for processing. */
 interface TengwarNode {
@@ -19,13 +28,13 @@ interface TengwarNode {
 }
 
 // Listen for messages from popup.ts
-chrome.runtime.onMessage.addListener(function (request) {
+chrome.runtime.onMessage.addListener((request: TengwarMessage) => {
     // --- THIS LISTENER REMAINS LARGELY THE SAME ---
     // It handles messages *after* initialization or user interaction
     if (request.action === 'updateTengwarStatus') {
         // Status update FROM background/popup (e.g., tab update or popup interaction)
         const shouldBeEnabled = request.enabled;
-        const newFont = request.font || currentFont; // Use font from message or current
+        const newFont = request.font ?? currentFont; // Use font from message or current
 
         if (shouldBeEnabled && !tengwarEnabled) {
             // Enable transcription
@@ -63,13 +72,8 @@ chrome.runtime.onMessage.addListener(function (request) {
     }
 });
 
-function updateTengwarFont(fontName: string) {
-    // Make sure font is valid
-    if (!fontName || (fontName !== 'annatar' && fontName !== 'parmaite')) {
-        fontName = 'annatar'; // Default to Annatar if invalid
-    }
-
-    currentFont = fontName;
+function updateTengwarFont(fontName: 'annatar' | 'parmaite' | null) {
+    fontName = fontName ?? 'annatar';
     const styleEl = document.getElementById('tengwar-font-style');
 
     if (styleEl) {
@@ -99,15 +103,15 @@ function updateTengwarFont(fontName: string) {
 }
 
 // Modify your existing injectTengwarFont function to accept a font parameter
-function injectTengwarFont(fontName: string) {
+function injectTengwarFont(fontName: 'annatar' | 'parmaite' | null) {
     if (fontInjected) {
         return;
     }
 
     // If no font name is provided, get it from storage
     if (!fontName) {
-        chrome.storage.sync.get('tengwarFont', function (data) {
-            const font = data.tengwarFont || 'annatar';
+        chrome.storage.sync.get('tengwarFont', (data: TengwarStorage) => {
+            const font = data.tengwarFont ?? 'annatar';
             injectTengwarFont(font);
         });
         return;
@@ -147,7 +151,7 @@ function processPage() {
 
 // Process content within a container element
 function processContent(container: HTMLElement) {
-    if (container === null || isElementToSkip(container)) {
+    if (isElementToSkip(container)) {
         return;
     }
 
@@ -185,15 +189,13 @@ function isElementToSkip(element: HTMLElement | null): boolean {
     }
 
     // Skip if already processed or in skip list
-    if (element.classList && (
-        element.classList.contains('tengwar-text') ||
-        element.classList.contains('tengwar-skip'))) {
+    if (element.classList.contains('tengwar-text') ||
+        element.classList.contains('tengwar-skip')) {
         return true;
     }
 
     // Skip if parent already processed
-    if (element.parentElement && element.parentElement.classList &&
-        element.parentElement.classList.contains('tengwar-text')) {
+    if (element.parentElement?.classList.contains('tengwar-text')) {
         return true;
     }
 
@@ -258,7 +260,7 @@ function processTengwarBatchWithYield() {
 
     const startTime = performance.now();
     const nodesToProcess: TengwarNode[] = [];
-    const textsToProcess = [];
+    const textsToProcess: string[] = [];
 
     // Collect as many unprocessed nodes as possible within the time limit
     // This just collects node references, not actually processing yet
@@ -296,7 +298,7 @@ function processTengwarBatchWithYield() {
         },
         (response: ProcessBatchResponse) => {
             if (!response || response.error) {
-                console.error("Error processing batch:", response?.error || "No response");
+                console.error("Error processing batch:", response?.error ?? "No response");
 
                 // Continue processing with the next batch
                 setTimeout(processTengwarBatchWithYield, TENGWAR_UI_REFRESH_DELAY);
@@ -392,7 +394,7 @@ function setupMutationObserver() {
         mutations.forEach(function (mutation: MutationRecord) {
             if (mutation.type === 'childList') {
                 // Handle new nodes being added
-                mutation.addedNodes.forEach(function (node) {
+                mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         nodesToProcess.add(node as HTMLElement);
                     }
@@ -442,13 +444,13 @@ function initializeTengwar() {
             return;
         }
 
-        chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data) {
+        chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], (data: TengwarStorage) => {
             if (chrome.runtime.lastError) {
                 console.error("Error getting storage:", chrome.runtime.lastError);
                 return;
             }
 
-            const enabledDomains = data.tengwarEnabledDomains || [];
+            const enabledDomains = data.tengwarEnabledDomains ?? [];
             currentFont = data.tengwarFont || 'annatar'; // Store initially loaded font
 
             if (enabledDomains.includes(currentDomain)) {

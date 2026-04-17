@@ -1,7 +1,6 @@
 import {transcribeToTengwar} from "./worker";
-import OnUpdatedInfo = chrome.tabs.OnUpdatedInfo;
-import Tab = chrome.tabs.Tab;
 import {ProcessBatchResponse} from "./types";
+import MessageSender = chrome.runtime.MessageSender;
 
 const wordRegex = /\p{L}+(?:'\p{L}+)*/gu;
 
@@ -9,8 +8,12 @@ interface TengwarEnabledDomains {
     tengwarEnabledDomains: string[];
 }
 
-chrome.runtime.onInstalled.addListener(function () {
-    chrome.storage.sync.get('tengwarEnabledDomains', function (data: TengwarEnabledDomains) {
+type MessageRequest =
+    | { action: 'getTengwarStatus'; domain: string }
+    | { action: 'processBatch'; textBatch: string[] };
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.storage.sync.get('tengwarEnabledDomains', (data: TengwarEnabledDomains) => {
         if (data.tengwarEnabledDomains === undefined) {
             chrome.storage.sync.set({tengwarEnabledDomains: []});
         }
@@ -18,7 +21,7 @@ chrome.runtime.onInstalled.addListener(function () {
 });
 
 // Listen for tab updates to inform content scripts about their status
-chrome.tabs.onUpdated.addListener(function (tabId: number, changeInfo: OnUpdatedInfo, tab: Tab) {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Only run this when the tab has completed loading
     if (changeInfo.status === 'complete' && tab.url) {
         try {
@@ -31,8 +34,11 @@ chrome.tabs.onUpdated.addListener(function (tabId: number, changeInfo: OnUpdated
             }
 
             // Get the current enabled domains and check if this domain is enabled
-            chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], function (data: { tengwarEnabledDomains: string[]; tengwarFont: string; }) {
-                const enabledDomains = data.tengwarEnabledDomains || [];
+            chrome.storage.sync.get(['tengwarEnabledDomains', 'tengwarFont'], (data: {
+                tengwarEnabledDomains: string[];
+                tengwarFont: string;
+            }) => {
+                const enabledDomains = data.tengwarEnabledDomains ?? [];
                 const isEnabled = enabledDomains.includes(domain);
                 const font = data.tengwarFont || 'annatar';
 
@@ -51,12 +57,12 @@ chrome.tabs.onUpdated.addListener(function (tabId: number, changeInfo: OnUpdated
 });
 
 // Listen for messages from content scripts and popup
-chrome.runtime.onMessage.addListener(function (request: { action: string; domain: any; },
-                                               sender: any,
-                                               sendResponse: (arg0: { enabled: any; }) => void): boolean {
+chrome.runtime.onMessage.addListener((request: MessageRequest,
+                                      sender: MessageSender,
+                                      sendResponse: (response: { enabled: boolean; }) => void): boolean => {
     if (request.action === 'getTengwarStatus') {
         const domain = request.domain;
-        chrome.storage.sync.get('tengwarEnabledDomains', function (data: TengwarEnabledDomains) {
+        chrome.storage.sync.get('tengwarEnabledDomains', (data: TengwarEnabledDomains) => {
             const enabledDomains = data.tengwarEnabledDomains || [];
             const isEnabled = enabledDomains.includes(domain);
             sendResponse({enabled: isEnabled});
@@ -67,8 +73,8 @@ chrome.runtime.onMessage.addListener(function (request: { action: string; domain
 });
 
 // Add this to background.js if not already present
-chrome.runtime.onMessage.addListener((request: { action: string; textBatch: any; },
-                                      sender: any,
+chrome.runtime.onMessage.addListener((request: MessageRequest,
+                                      sender: MessageSender,
                                       sendResponse: (response: ProcessBatchResponse) => void): boolean => {
     if (request.action === 'processBatch') {
         const textBatch = request.textBatch;
@@ -99,7 +105,7 @@ chrome.runtime.onMessage.addListener((request: { action: string; textBatch: any;
                     fragments.push({
                         text: transcribeToTengwar(match[0], false),
                         isTengwar: true,
-                        original: match[0]
+                        original: match[0] === 'ofthe' ? 'of the' : match[0]
                     });
 
                     lastIndex = match.index + match[0].length;
