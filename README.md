@@ -4,9 +4,9 @@ Automatically transliterates English text on a website to Tengwar - also know as
 
 [Store listing](https://chromewebstore.google.com/detail/tengwar-transcriber/pcdkckmmamgpdagoenfhifahcfnpipne?authuser=1&hl=en)
 
-Ash nazg durbatuluk, ash nazg gimbatul
+Ash nazg durbatulûk, ash nazg gimbatul
 
-Ash nazg thrakatuluk agh burzum-ishi krimpatul
+Ash nazg thrakatulûk agh burzum-ishi krimpatul
 
 ### Manual build and installation
 ```
