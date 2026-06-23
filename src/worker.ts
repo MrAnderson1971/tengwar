@@ -3,6 +3,7 @@ import {dictionary} from "cmu-pronouncing-dictionary";
 import {alignLettersToPhonemes, type AlignmentResult} from "./align";
 import translate from "british_american_translate";
 import {LRUCache} from "lru-cache";
+import nlp from "compromise";
 
 function isSoftC(word: string, position: number): boolean {
     return ['e', 'i', 'y'].includes(word[position + 1]?.toLowerCase() ?? "");
@@ -149,8 +150,8 @@ function isNgDigraphImproved(word: string,
     if (alignmentByIndex === null) {
         return false; // Can't tell
     }
-    const alignmentEntryN =  alignmentByIndex[position] ?? null;     // O(1) lookup for 'n'
-    const alignmentEntryG =  alignmentByIndex[position + 1] ?? null; // O(1) lookup for 'g'
+    const alignmentEntryN = alignmentByIndex[position] ?? null;     // O(1) lookup for 'n'
+    const alignmentEntryG = alignmentByIndex[position + 1] ?? null; // O(1) lookup for 'g'
 
     if (!pronunciation || !alignmentEntryN) {
         // Fall back to the original heuristic if no pronunciation or alignment
@@ -184,7 +185,7 @@ function isSoftCImproved(word: string,
     if (alignmentByIndex === null) {
         return false;
     }
-    const alignmentEntry =  alignmentByIndex[position] ?? null; // O(1) lookup
+    const alignmentEntry = alignmentByIndex[position] ?? null; // O(1) lookup
 
     if (!pronunciation || !alignmentEntry) {
         // Fall back to the original heuristic
@@ -271,7 +272,7 @@ function isPostvocalicR(word: string,
                         position: number,
                         pronunciation: string | null,
                         alignmentByIndex: AlignmentResult[] | null): boolean {
-    const alignment = alignmentByIndex ? alignmentByIndex[position] : null;
+    const alignment = alignmentByIndex ? alignmentByIndex[position]! : null;
 
     // Handle the next character explicitly
     const nextChar = word[position + 1];
@@ -322,7 +323,7 @@ function isSilentEInMiddle(word: string,
         return false;
     }
 
-    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position] : null; // O(1) lookup
+    const alignmentEntry = alignmentByIndex ? alignmentByIndex[position]! : null; // O(1) lookup
     if (alignmentEntry === null) {
         return false;
     }
@@ -430,13 +431,7 @@ function isDiphthong(word: string,
  * @returns {null | string}
  */
 function getPronunciation(word: string): string | null {
-    // Get from dictionary
-    let pronunciation = null;
-    if (dictionary[word.toLowerCase()]) {
-        pronunciation = dictionary[word.toLowerCase()];
-    }
-
-    return pronunciation ?? null;
+    return dictionary[word.toLowerCase()] ?? null;
 }
 
 /** Get diphthong type based on second vowel
@@ -554,7 +549,23 @@ function isMonophthongEau(word: string,
         /OW/.test(alignment3?.phoneme ?? "");
 }
 
-const cache = new LRUCache<string, string>({ max: 25_000 });
+function hasSGrammaticalSuffix(word: string): boolean {
+    const doc = nlp(word);
+
+    // Plural noun with a different singular form
+    const isPluralNoun = doc.nouns().isPlural().found;
+
+    // Verb where the infinitive is different from the input
+    const infinitive = doc.verbs().toInfinitive().text().toLowerCase().trim();
+    const isPresentVerb = !!infinitive && infinitive !== word.toLowerCase();
+
+    // Possessives
+    const isPossessive = word.includes("'");
+
+    return isPluralNoun || isPresentVerb || isPossessive;
+}
+
+const cache = new LRUCache<string, string>({max: 25_000});
 
 /**
  *
@@ -577,7 +588,7 @@ export function transcribeToTengwar(word: string, debug: boolean = true): string
     const pronunciation = getPronunciation(processedText);
     processedText = removeSilentLetters(processedText.toLowerCase());
     const alignmentNaive = alignLettersToPhonemes(processedText, pronunciation);
-    const alignment = new Array(processedText.length).fill(null);
+    const alignment: AlignmentResult[] = new Array(processedText.length).fill(null);
 
     if (alignmentNaive) {
         for (const entry of alignmentNaive) {
@@ -592,9 +603,9 @@ export function transcribeToTengwar(word: string, debug: boolean = true): string
         console.log(pronunciation, alignment);
     }
 
-    const result = [];
+    const result: string[] = [];
     let i = 0;
-    let vowelOnTop = null;
+    let vowelOnTop: string | null = null;
 
     while (i < processedText.length) {
         const char = processedText[i]!.toLowerCase();
@@ -755,7 +766,9 @@ export function transcribeToTengwar(word: string, debug: boolean = true): string
                         break;
 
                     case 's':
-                        if (isHardS(processedText, i, pronunciation, alignment)) {
+                        if (i === processedText.length - 1 && hasSGrammaticalSuffix(word)) {
+                            result.push(tengwarMap['right-hook']);
+                        } else if (isHardS(processedText, i, pronunciation, alignment)) {
                             result.push(englishToTengwar['z']!.char);
                         } else {
                             result.push(englishToTengwar['s']!.char);

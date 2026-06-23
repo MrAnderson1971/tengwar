@@ -19,10 +19,20 @@ const VOWEL_GAP_PENALTY = -1.5; // Penalty for making vowels silent (keep origin
 const PATTERN_MATCH_BASE_BONUS = 2.5; // Keep original value
 const PATTERN_MATCH_LEN_BONUS = 0.8; // Keep original value
 // --- DP Pointer Constants ---
-const PTR_DIAGONAL = 1; // Match/Mismatch
-const PTR_UP = 2;       // Gap in Phonemes (delete letter)
-const PTR_LEFT = 3;     // Gap in Letters (insert phoneme)
-const PTR_PATTERN = 4;  // Matched a commonPattern
+const PTR_DIAGONAL = 1 as const; // Match/Mismatch
+const PTR_UP = 2 as const;       // Gap in Phonemes (delete letter)
+const PTR_LEFT = 3 as const;     // Gap in Letters (insert phoneme)
+const PTR_PATTERN = 4 as const;  // Matched a commonPattern
+
+type PtrInfo = | { letters: string; phonemes: string[]; len_l: number; len_p: number }
+    | null;
+
+type PtrEntry =
+    | { type: typeof PTR_DIAGONAL }
+    | { type: typeof PTR_UP }
+    | { type: typeof PTR_LEFT }
+    | { type: typeof PTR_PATTERN; info: PtrInfo }
+    | null;
 
 /**
  * Modified scoring function for aligning a single letter and a single phoneme.
@@ -108,18 +118,20 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
     }
 
     // DP table: dp[i][j] = max score aligning letters[0..i-1] and phonemes[0..j-1]
-    const dp = Array(N + 1).fill(null).map(() => Array(M + 1).fill(-Infinity));
+    const dp: (null | number)[][] = Array(N + 1).fill(null).map(() => Array(M + 1).fill(-Infinity));
     // Pointer table: ptr[i][j] stores how dp[i][j] was achieved
-    const ptr = Array(N + 1).fill(null).map(() => Array(M + 1).fill(null));
+    const ptr: (PtrEntry)[][] = Array.from({length: N + 1}, () =>
+        Array<PtrEntry>(M + 1).fill(null)
+    );
 
     // --- Initialization ---
     dp[0]![0]! = 0;
     for (let i = 1; i <= N; i++) {
-        dp[i]![0] = dp[i - 1]![0] + GAP_PENALTY; // Aligning letters with gaps
+        dp[i]![0] = dp[i - 1]![0]! + GAP_PENALTY; // Aligning letters with gaps
         ptr[i]![0] = {type: PTR_UP};
     }
     for (let j = 1; j <= M; j++) {
-        dp[0]![j] = dp[0]![j - 1] + GAP_PENALTY; // Aligning phonemes with gaps
+        dp[0]![j] = dp[0]![j - 1]! + GAP_PENALTY; // Aligning phonemes with gaps
         ptr[0]![j] = {type: PTR_LEFT};
     }
 
@@ -127,8 +139,8 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
     for (let i = 1; i <= N; i++) {
         for (let j = 1; j <= M; j++) {
             let maxScore = -Infinity;
-            let bestPtr = null;
-            let patternInfo = null; // To store matched pattern details
+            let bestPtr: 1 | 2 | 3 | 4 | null = null;
+            let patternInfo: PtrInfo = null; // To store matched pattern details
 
             // Check for specific OY diphthong pattern
             const currentPhoneme = phonemes[j - 1]!;
@@ -136,7 +148,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
                 const segment = letters.slice(i - 2, i).join('');
                 if (segment === 'oy' || segment === 'oi') {
                     // Give a very high bonus for this specific case
-                    const oiDiphthongScore = dp[i - 2]![j - 1] + 6.0; // Special high score for "oy"/"oi" -> "OY"
+                    const oiDiphthongScore = dp[i - 2]![j - 1]! + 6.0; // Special high score for "oy"/"oi" -> "OY"
 
                     if (oiDiphthongScore > maxScore) {
                         maxScore = oiDiphthongScore;
@@ -190,7 +202,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
 
                         const patternBonus = PATTERN_MATCH_BASE_BONUS + (PATTERN_MATCH_LEN_BONUS * p_len_l) + extraBonus;
                         // Handle zero-phoneme patterns (like silent gh) - ensure we don't access dp[-1]
-                        const prev_dp_score = (i - p_len_l >= 0 && j - p_len_p >= 0) ? dp[i - p_len_l]![j - p_len_p] : dp[0]![0];
+                        const prev_dp_score = (i - p_len_l >= 0 && j - p_len_p >= 0) ? dp[i - p_len_l]![j - p_len_p]! : dp[0]![0]!;
                         const score = prev_dp_score + patternBonus;
 
                         if (score > maxScore) {
@@ -204,7 +216,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
 
             // 2. Consider standard single-step moves (match/mismatch, gaps) only if a pattern wasn't the best choice OR equally good
             // Diagonal: Match/Mismatch letter[i-1] with phoneme[j-1]
-            const scoreDiag = dp[i - 1]![j - 1] + getSingleScore(letters[i - 1]!, phonemes[j - 1]!);
+            const scoreDiag = dp[i - 1]![j - 1]! + getSingleScore(letters[i - 1]!, phonemes[j - 1]!);
             if (scoreDiag >= maxScore) { // Use >= to allow diagonal match if equal to pattern
                 // Avoid overriding a *better* pattern match found above
                 if (scoreDiag > maxScore || bestPtr !== PTR_PATTERN) {
@@ -235,7 +247,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
                 }
             }
 
-            const scoreUp = dp[i - 1]![j] + specialGapPenalty;
+            const scoreUp = dp[i - 1]![j]! + specialGapPenalty;
 
             if (scoreUp >= maxScore) { // Use >=
                 if (scoreUp > maxScore || (bestPtr !== PTR_PATTERN && bestPtr !== PTR_DIAGONAL)) {
@@ -249,7 +261,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
             // Apply higher penalty for vowel phonemes with missing letters
             const isVowelPhoneme = phonemes[j - 1]!.match(/^(AA|AE|AH|AO|AW|AY|EH|ER|EY|IH|IY|OW|OY|UH|UW)[0-9]?/);
             const phonemeGapPenalty = isVowelPhoneme ? VOWEL_GAP_PENALTY : GAP_PENALTY;
-            const scoreLeft = dp[i]![j - 1] + phonemeGapPenalty;
+            const scoreLeft = dp[i]![j - 1]! + phonemeGapPenalty;
 
             if (scoreLeft >= maxScore) { // Use >=
                 if (scoreLeft > maxScore || (bestPtr !== PTR_PATTERN && bestPtr !== PTR_DIAGONAL && bestPtr !== PTR_UP)) {
@@ -277,9 +289,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
                     break;
                 default:
                     // Should not happen if initialization is correct, but as a fallback
-                    console.warn("No valid pointer found for dp[", i, "][", j, "]");
-                    // Default to diagonal as a guess, or handle error
-                    ptr[i]![j] = {type: PTR_DIAGONAL};
+                    throw new Error(`Unknown best PTR type: ${bestPtr satisfies never | null}`);
             }
         } // end for j
     } // end for i
@@ -296,7 +306,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
             // Attempt recovery or break; returning partial might be okay?
             break; // Avoid infinite loop
         }
-        const move = ptr[current_i]![current_j];
+        const move = ptr[current_i]![current_j]!;
 
         if (move.type === PTR_PATTERN) {
             const {info} = move;
@@ -313,14 +323,14 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
 
             // Special handling for "oy"/"oi" patterns with OY phoneme - treat as a single unit
             if ((patternLetters === 'oy' || patternLetters === 'oi') &&
-                len_p === 1 && patternPhonemes[0].startsWith('OY')) {
+                len_p === 1 && patternPhonemes[0]!.startsWith('OY')) {
                 // Handle as a single unit
                 currentWordIndex -= len_l;
                 alignment.push({
                     letters: patternLetters,
                     startIndex: currentWordIndex,
                     endIndex: currentWordIndex + len_l - 1,
-                    phoneme: patternPhonemes[0],
+                    phoneme: patternPhonemes[0]!,
                     isSilent: false,
                     pattern: patternLetters
                 });
@@ -330,7 +340,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
                     const letterIndex = current_i - len_l + k;
                     // Simple 1-to-1 within pattern, null phoneme if letters > phonemes
                     // Ensure we don't access negative phoneme index if len_p is 0
-                    const phoneme = (len_p > 0 && k < len_p) ? patternPhonemes[k] : null;
+                    const phoneme = (len_p > 0 && k < len_p) ? patternPhonemes[k]! : null;
                     const letter = letters[letterIndex]!;
                     currentWordIndex--;
                     alignment.push({
@@ -395,8 +405,7 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
             });
             current_j--;
         } else {
-            console.error("Alignment error: Unknown pointer type during traceback at", current_i, current_j, "Type:", move.type);
-            break; // Avoid infinite loop
+            throw new Error(`Unhandled move type: ${(move satisfies never)}`);
         }
     } // End while loop
 

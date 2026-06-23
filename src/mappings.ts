@@ -55,6 +55,8 @@ export const tengwarMap = {
     'two-dots-below': 'Í', // \TTtwodotsbelow - For short i sound (quickly)
     'left-hook': '|',   // \Tlefthook
 
+    'right-hook': '_',
+
     // Punctuation
     'space': ' ',       // \Ts
     'centered-dot': '=', // \Tcentereddot
@@ -134,6 +136,8 @@ export const specialWords: Record<string, string> = {
 
     // no clue why this didn't work, but its variants did
     'precious': tengwarToString('parma', 'roomen', 'silme-nuquerna', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'),
+    'is': tengwarToString('esse-nuquerna', 'dot'),
+    'has': tengwarToString('hyarmen', 'esse-nuquerna', 'three-dots')
 } as const;
 
 // Individual phoneme patterns

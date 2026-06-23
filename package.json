@@ -30,6 +30,7 @@
   "dependencies": {
     "british_american_translate": "^2.0.1",
     "cmu-pronouncing-dictionary": "^3.0.0",
+    "compromise": "^14.15.1",
     "lru-cache": "^11.2.4"
   }
 }
