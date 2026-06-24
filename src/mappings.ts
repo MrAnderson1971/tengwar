@@ -133,11 +133,12 @@ export const specialWords: Record<string, string> = {
     'firearm': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta'),
     'firearms': tengwarToString('formen', 'oore', 'dot', 'dot-below', 'oore', 'three-dots', 'malta', 'esse-nuquerna'),
     'rwanda': tengwarToString('roomen', 'nwalme', 'ando', 'three-dots', 'nasalizer', 'telco', 'three-dots'),
+    'was': tengwarToString('vala', 'esse-nuquerna', 'three-dots'),
+    'is': tengwarToString('esse-nuquerna', 'dot'),
+    'has': tengwarToString('hyarmen', 'esse-nuquerna', 'three-dots'),
 
     // no clue why this didn't work, but its variants did
     'precious': tengwarToString('parma', 'roomen', 'silme-nuquerna', 'acute', 'telco', 'dot', 'vala', 'right-curl', 'silme'),
-    'is': tengwarToString('esse-nuquerna', 'dot'),
-    'has': tengwarToString('hyarmen', 'esse-nuquerna', 'three-dots')
 } as const;
 
 // Individual phoneme patterns

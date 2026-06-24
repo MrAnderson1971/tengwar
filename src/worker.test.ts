@@ -188,3 +188,7 @@ test('appreciate', () => {
 test('gas', () => {
     expect(transcribeToTengwar('gas')).toBe(tengwarToString('ungwe', 'silme', 'three-dots'));
 })
+
+test('was', () => {
+    expect(transcribeToTengwar('was')).toBe(tengwarToString('vala', 'esse-nuquerna', 'three-dots'));
+})
