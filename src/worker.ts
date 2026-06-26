@@ -553,16 +553,18 @@ function hasSGrammaticalSuffix(word: string): boolean {
     const doc = nlp(word);
 
     // Plural noun with a different singular form
-    const isPluralNoun = doc.nouns().isPlural().found;
+    if (doc.nouns().isPlural().found) {
+        return true;
+    }
 
     // Verb where the infinitive is different from the input
     const infinitive = doc.verbs().toInfinitive().text().toLowerCase().trim();
-    const isPresentVerb = !!infinitive && infinitive !== word.toLowerCase();
+    if (!!infinitive && infinitive !== word.toLowerCase()) {
+        return true;
+    }
 
     // Possessives
-    const isPossessive = word.includes("'");
-
-    return isPluralNoun || isPresentVerb || isPossessive;
+    return word.includes("'");
 }
 
 const cache = new LRUCache<string, string>({max: 25_000});

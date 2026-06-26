@@ -387,14 +387,14 @@ function setupMutationObserver() {
         return;
     }
 
-    observer = new MutationObserver(function (mutations) {
+    observer = new MutationObserver(mutations => {
         // Process in batches to improve performance
         const nodesToProcess: Set<HTMLElement> = new Set();
 
-        mutations.forEach(function (mutation: MutationRecord) {
+        mutations.forEach(mutation => {
             if (mutation.type === 'childList') {
                 // Handle new nodes being added
-                mutation.addedNodes.forEach((node) => {
+                mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         nodesToProcess.add(node as HTMLElement);
                     }

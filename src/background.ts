@@ -15,7 +15,8 @@ type MessageRequest =
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.sync.get('tengwarEnabledDomains', (data: TengwarEnabledDomains) => {
         if (data.tengwarEnabledDomains === undefined) {
-            chrome.storage.sync.set({tengwarEnabledDomains: []});
+            chrome.storage.sync.set({tengwarEnabledDomains: []})
+                .catch((err: unknown) => console.error(err));
         }
     });
 });
@@ -47,8 +48,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                     action: 'updateTengwarStatus',
                     enabled: isEnabled,
                     font: font
-                }).catch(() => {
-                });
+                }).catch((err: unknown) => console.error(err));
             });
         } catch (error) {
             console.error('Error processing tab URL:', error);
@@ -58,8 +58,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request: MessageRequest,
-                                      sender: MessageSender,
-                                      sendResponse: (response: { enabled: boolean; }) => void): boolean => {
+                                      _sender: MessageSender,
+                                      sendResponse: (response: { enabled: boolean; }) => void) => {
     if (request.action === 'getTengwarStatus') {
         const domain = request.domain;
         chrome.storage.sync.get('tengwarEnabledDomains', (data: TengwarEnabledDomains) => {
@@ -74,8 +74,8 @@ chrome.runtime.onMessage.addListener((request: MessageRequest,
 
 // Add this to background.js if not already present
 chrome.runtime.onMessage.addListener((request: MessageRequest,
-                                      sender: MessageSender,
-                                      sendResponse: (response: ProcessBatchResponse) => void): boolean => {
+                                      _sender: MessageSender,
+                                      sendResponse: (response: ProcessBatchResponse) => void) => {
     if (request.action === 'processBatch') {
         const textBatch = request.textBatch;
 
@@ -90,7 +90,7 @@ chrome.runtime.onMessage.addListener((request: MessageRequest,
                 // Special case for "of the" phrases
                 let processedText = text.replace(/\bof\s+the\b/gi, "ofthe");
 
-                const fragments = [];
+                const fragments: { text: string; isTengwar: boolean; original?: string }[] = [];
                 let lastIndex = 0;
                 let match;
 
@@ -122,8 +122,8 @@ chrome.runtime.onMessage.addListener((request: MessageRequest,
             });
 
             sendResponse({results: results});
-        } catch (error: any) {
-            sendResponse({error: error.message});
+        } catch (error: unknown) {
+            sendResponse({error: error instanceof Error ? error.message : String(error)});
         }
 
         return true; // Keep message channel open

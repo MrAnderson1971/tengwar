@@ -118,9 +118,10 @@ export function alignLettersToPhonemes(word: string, pronunciation: string | nul
     }
 
     // DP table: dp[i][j] = max score aligning letters[0..i-1] and phonemes[0..j-1]
-    const dp: (null | number)[][] = Array(N + 1).fill(null).map(() => Array(M + 1).fill(-Infinity));
+    const dp: (null | number)[][] = Array(N + 1).fill(null)
+        .map(() => Array<number>(M + 1).fill(-Infinity));
     // Pointer table: ptr[i][j] stores how dp[i][j] was achieved
-    const ptr: (PtrEntry)[][] = Array.from({length: N + 1}, () =>
+    const ptr: PtrEntry[][] = Array.from({length: N + 1}, () =>
         Array<PtrEntry>(M + 1).fill(null)
     );
 
